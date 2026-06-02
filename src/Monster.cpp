@@ -53,12 +53,44 @@ void Skeleton::takeTurn(Player& player, const Map& map) {
     moveToward(*this, player, map);
 }
 
-Boss::Boss(int x, int y) : Monster("地牢领主", 'D', x, y, 50, 12, 5, 100, 50), regenCounter_(0) {}
+Boss::Boss(int x, int y) : Monster("地牢领主", 'B', x, y, 50, 12, 5, 100, 50), regenCounter_(0) {}
 void Boss::takeTurn(Player& player, const Map& map) {
+    (void)map; // Boss 不会移动
     if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) {
         regenCounter_++;
         if (regenCounter_ % 3 == 0) heal(5);
-        return;
+        return; // 玩家在相邻格 → 攻击会在Combat中处理
     }
-    moveToward(*this, player, map);
+    // 玩家不在旁边 → Boss原地不动，等待玩家过来
+}
+
+// ===== Goblin =====
+Goblin::Goblin(int x, int y) : Monster("哥布林", 'M', x, y, 12, 5, 2, 15, 5) {}
+void Goblin::takeTurn(Player& player, const Map& map) {
+    if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) return;
+    // 50%概率追玩家
+    if (rand() % 100 < 50) moveToward(*this, player, map);
+    else moveRandom(*this, map);
+}
+
+// ===== Wolf =====
+Wolf::Wolf(int x, int y) : Monster("狼", 'M', x, y, 10, 7, 1, 18, 6) {}
+void Wolf::takeTurn(Player& player, const Map& map) {
+    if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) return;
+    // 70%追玩家，速度快
+    if (rand() % 100 < 70) moveToward(*this, player, map);
+    else moveRandom(*this, map);
+    // 狼有机会走两步（二次移动）
+    if (rand() % 100 < 30) {
+        if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) return;
+        if (rand() % 100 < 70) moveToward(*this, player, map);
+    }
+}
+
+// ===== DeathKnight =====
+DeathKnight::DeathKnight(int x, int y) : Monster("死亡骑士", 'B', x, y, 35, 10, 6, 60, 30) {}
+void DeathKnight::takeTurn(Player& player, const Map& map) {
+    (void)map; // 死亡骑士不会移动
+    if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) return;
+    // 玩家不在旁边 → 原地不动
 }

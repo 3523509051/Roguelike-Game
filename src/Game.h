@@ -46,6 +46,11 @@ private:
     void showInventory();
 
     void setMessage(const std::string& msg);
+
+    // ⭐ 战斗系统
+    void enterBattle(Monster* monster);  // 进入全屏战斗
+    std::vector<std::string> battleLog_;
+    void addBattleLog(const std::string& msg);
 };
 
 #endif // GAME_H

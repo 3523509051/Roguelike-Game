@@ -84,17 +84,30 @@ void Game::spawnMonsters(int count) {
         if (pos == player_->getPos()) continue;
 
         int level = player_->getFloor();
+
+        // 每层放精英怪/Boss
         if (level >= MAX_FLOORS && placed == 0) {
-            // 最后一层放Boss
+            // 第5层 → 最终Boss
             monsters_.push_back(new Boss(pos.first, pos.second));
+        } else if (level >= 4 && placed == 0) {
+            // 第4层 → 精英
+            monsters_.push_back(new DeathKnight(pos.first, pos.second));
         } else {
+            // 小怪——按层数逐渐变强
             int r = rand() % 100;
-            if (r < 40)
-                monsters_.push_back(new Slime(pos.first, pos.second));
-            else if (r < 70)
-                monsters_.push_back(new Bat(pos.first, pos.second));
-            else
-                monsters_.push_back(new Skeleton(pos.first, pos.second));
+            if (level <= 2) {
+                // 前2层：简单怪
+                if (r < 45) monsters_.push_back(new Slime(pos.first, pos.second));
+                else if (r < 75) monsters_.push_back(new Bat(pos.first, pos.second));
+                else monsters_.push_back(new Skeleton(pos.first, pos.second));
+            } else {
+                // 3层以后：加入哥布林和狼
+                if (r < 25) monsters_.push_back(new Slime(pos.first, pos.second));
+                else if (r < 45) monsters_.push_back(new Bat(pos.first, pos.second));
+                else if (r < 65) monsters_.push_back(new Skeleton(pos.first, pos.second));
+                else if (r < 85) monsters_.push_back(new Goblin(pos.first, pos.second));
+                else monsters_.push_back(new Wolf(pos.first, pos.second));
+            }
         }
         placed++;
         attempts++;
@@ -130,7 +143,115 @@ void Game::spawnItems(int count) {
     }
 }
 
-void Game::update(char key) {
+void Game::addBattleLog(const std::string& msg) {
+    battleLog_.push_back(msg);
+}
+
+// ⭐ 全屏战斗系统
+void Game::enterBattle(Monster* monster) {
+    battleLog_.clear();
+    addBattleLog("⚔ " + monster->getName() + " 出现了！");
+
+    bool fleeing = false;
+    bool playerDefeated = false;
+
+    while (monster->isAlive() && player_->isAlive() && !fleeing) {
+        // 渲染战斗画面
+        std::string prompt = "选择你的行动：";
+        render_->drawBattleScreen(*player_, *monster, battleLog_, prompt);
+
+        char key = input_->getKey();
+        bool playerActed = false;
+
+        switch (key) {
+            case 'a': { // 攻击
+                int dmg = Combat::calcDamage(player_->getAttack(), monster->getDefense());
+                int actual = monster->takeDamage(dmg);
+                addBattleLog("→ 你挥剑斩向" + monster->getName() + "！");
+                addBattleLog("💥 造成 " + std::to_string(actual) + " 点伤害！");
+                if (!monster->isAlive()) {
+                    addBattleLog("🏆 " + monster->getName() + " 被击败了！");
+                    addBattleLog("✨ 获得 " + std::to_string(monster->getExpReward()) + " 经验");
+                    addBattleLog("💰 获得 " + std::to_string(monster->getGoldReward()) + " 金币");
+                    render_->drawBattleScreen(*player_, *monster, battleLog_, "按任意键继续...");
+                    input_->getKey();
+                    player_->gainExp(monster->getExpReward());
+                    player_->addGold(monster->getGoldReward());
+                    return; // 战斗胜利，退出
+                }
+                playerActed = true;
+                break;
+            }
+            case 'd': { // 防御
+                addBattleLog("🛡 你举起盾牌防御！");
+                playerActed = true;
+                break;
+            }
+            case 'i': { // 使用道具
+                auto inv = player_->getInventory();
+                bool foundHeal = false;
+                for (const auto& itemName : inv) {
+                    if (itemName.find("血瓶") != std::string::npos) {
+                        player_->useItem(itemName);
+                        int healAmt = (itemName.find("大") != std::string::npos) ? 20 : 8;
+                        player_->heal(healAmt);
+                        addBattleLog("♥ 使用了" + itemName + "，回复 " + std::to_string(healAmt) + " HP！");
+                        foundHeal = true;
+                        break;
+                    }
+                }
+                if (!foundHeal) {
+                    addBattleLog("❌ 背包里没有血瓶！");
+                    continue; // 不消耗回合
+                }
+                playerActed = true;
+                break;
+            }
+            case 'f': { // 逃跑
+                int chance = 50 + player_->getLevel() * 10;
+                if (rand() % 100 < chance) {
+                    addBattleLog("🏃 你成功逃跑了！");
+                    render_->drawBattleScreen(*player_, *monster, battleLog_, "按任意键继续...");
+                    input_->getKey();
+                    fleeing = true;
+                } else {
+                    addBattleLog("❌ 逃跑失败！");
+                    playerActed = true; // 逃跑失败也会消耗一回合
+                }
+                break;
+            }
+            default:
+                continue; // 无效按键，不消耗回合
+        }
+
+        if (!fleeing && playerActed) {
+            // 怪物反击
+            if (monster->isAlive()) {
+                int dmgReduction = (key == 'd') ? 2 : 1; // 防御时伤害减半
+                int rawDmg = Combat::calcDamage(monster->getAttack(), player_->getDefense());
+                int actualDmg = rawDmg / dmgReduction;
+                player_->takeDamage(actualDmg);
+                if (key == 'd') {
+                    addBattleLog("🛡 防御成功！伤害从 " + std::to_string(rawDmg) +
+                                 " 减为 " + std::to_string(actualDmg));
+                } else {
+                    addBattleLog("💥 " + monster->getName() + " 反击！受到 " + std::to_string(actualDmg) + " 点伤害！");
+                }
+
+                if (!player_->isAlive()) {
+                    addBattleLog("💀 你被 " + monster->getName() + " 击败了...");
+                    render_->drawBattleScreen(*player_, *monster, battleLog_, "按任意键继续...");
+                    input_->getKey();
+                    playerDefeated = true;
+                }
+            }
+        }
+    }
+
+    if (playerDefeated) {
+        gameOver();
+    }
+}
     switch (key) {
         case 'w': movePlayer(0, -1); break;
         case 's': movePlayer(0, 1);  break;
@@ -171,21 +292,18 @@ void Game::checkEvents() {
     int px = player_->getPos().first;
     int py = player_->getPos().second;
 
-    // 检查是否与怪物在同一个格子（战斗）
+    // 检查是否与怪物在同一个格子（进入全屏战斗）
     for (size_t i = 0; i < monsters_.size(); i++) {
         auto* m = monsters_[i];
         if (m && m->isAlive() && m->getPos().first == px && m->getPos().second == py) {
-            setMessage("遇到了 " + m->getName() + "！");
-            bool monsterDead = Combat::playerAttack(*player_, *m);
-            if (monsterDead) {
-                setMessage("击败了 " + m->getName() + "！获得 " +
-                          std::to_string(m->getExpReward()) + " 经验。");
+            enterBattle(m);
+            // 战斗结束后，如果怪物死了就移除
+            if (!m->isAlive()) {
                 delete m;
                 monsters_[i] = nullptr;
-            } else {
-                bool playerDead = Combat::monsterAttack(*m, *player_);
-                if (playerDead) return;
             }
+            // 如果玩家死了，gameOver已在enterBattle内处理
+            if (!player_->isAlive()) return;
         }
     }
 

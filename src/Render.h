@@ -25,6 +25,11 @@ public:
                  const std::string& message);   // 一次画全部
     void drawGameOver(int floor, int gold);     // 游戏结束
     void drawVictory();                          // 胜利画面
+
+    // ⭐ 战斗界面
+    void drawBattleScreen(const Player& player, const Monster& monster,
+                          const std::vector<std::string>& battleLog,
+                          const std::string& prompt);
 };
 
 #endif // RENDER_H

@@ -107,12 +107,21 @@ int main() {
         Slime slime(0, 0);
         Bat bat(0, 0);
         Skeleton skel(0, 0);
+        Goblin gob(0, 0);
+        Wolf wolf(0, 0);
         Boss boss(0, 0);
+        DeathKnight dk(0, 0);
         assert(slime.getName() == "史莱姆");
         assert(bat.getName() == "蝙蝠");
         assert(skel.getName() == "骷髅");
+        assert(gob.getName() == "哥布林");
+        assert(wolf.getName() == "狼");
         assert(boss.getName() == "地牢领主");
-        std::cout << "  ✅ 4种怪物创建正常" << std::endl;
+        assert(dk.getName() == "死亡骑士");
+        assert(boss.isBoss() == true);
+        assert(dk.isBoss() == true);
+        assert(slime.isBoss() == false);
+        std::cout << "  ✅ 7种怪物创建+isBoss()检测正常" << std::endl;
     }
 
     std::cout << "\n✅✅ 所有战斗系统测试通过！" << std::endl;

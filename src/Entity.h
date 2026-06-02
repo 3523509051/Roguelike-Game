@@ -35,6 +35,7 @@ public:
     // 战斗相关
     virtual int takeDamage(int dmg);
     virtual void heal(int amount);
+    virtual bool isBoss() const { return false; }
 };
 
 #endif // ENTITY_H
