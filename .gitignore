@@ -1,0 +1,7 @@
+*.o
+*.exe
+*.out
+*.swp
+save.dat
+.vscode/
+build/
