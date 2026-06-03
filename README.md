@@ -67,23 +67,45 @@ make test_render
 
 ```
 src/
-├── main.cpp       — 入口
-├── config.h       — 全局配置
-├── types.h        — 公共枚举
-├── Map.h/cpp      — 地图系统（BSP随机生成）
-├── Entity.h/cpp   — 实体基类
-├── Player.h/cpp   — 玩家类
-├── Monster.h/cpp  — 怪物类（4种）
-├── Item.h/cpp     — 道具类
-├── Combat.h/cpp   — 战斗引擎
-├── Render.h/cpp   — 控制台渲染
-├── Input.h/cpp    — 按键输入
-├── Save.h/cpp     — 存档系统
-└── Game.h/cpp     — 游戏主循环
+├── main.cpp          — 入口
+├── config.h          — 全局配置（20层地牢）
+├── types.h           — 公共枚举
+├── Map.h/cpp         — 地图系统（BSP随机生成）
+├── MapObject.h/cpp   — ⭐陷阱/门/宝箱系统
+├── Entity.h/cpp      — 实体基类（含ATB速度条）
+├── Player.h/cpp      — 玩家类
+├── Monster.h/cpp     — 怪物类（7种，含速度值）
+├── Item.h/cpp        — 道具类
+├── Combat.h/cpp      — 战斗引擎
+├── Render.h/cpp      — 控制台渲染（ANSI彩色）
+├── Sound.h/cpp       — ⭐音效系统
+├── Input.h/cpp       — 按键输入
+├── Save.h/cpp        — 存档系统
+├── Achievement.h/cpp — ⭐成就系统（10个成就）
+├── Shop.h/cpp        — ⭐商店系统
+└── Game.h/cpp        — 游戏主循环（含ATB战斗）
 ```
 
-## 团队分工
+## 团队分工（4人版）
 
-- **成员A**：Map 地图系统（BSP 算法）
-- **成员B**：Entity / Player / Monster / Item / Combat 战斗系统
-- **成员C**：Render / Input / Save / Game 渲染、输入、存档、主循环
+- **成员A**：Map 地图系统 + MapObject 陷阱/门/宝箱
+- **成员B**：Entity / Player / Monster / Item / Combat 战斗系统（含ATB）
+- **成员C**：Render / Sound / Input / Save 渲染、音效、输入、存档
+- **成员D**：Game / Achievement / Shop 主循环、成就、商店
+
+## 技术亮点
+
+- **ATB速度条战斗** — Entity中每个角色有speed和atbGauge，速度决定行动频率
+- **BSP算法** — 二叉空间分割生成随机地牢
+- **OOP三层继承** — Entity → Player/Monster → 7种具体怪物
+- **ANSI转义序列** — 终端彩色渲染
+- **AI辅助开发** — 全程记录prompt和人工调整
+
+## 开发说明
+
+详见 `docs/开发文档.md`，包含：
+- 编译说明
+- 代码规范
+- Git工作流
+- 调试技巧
+- 测试指南
