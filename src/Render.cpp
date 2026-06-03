@@ -157,7 +157,10 @@ void Render::drawBattleScreen(const Player& player, const Monster& monster,
     std::cout << "  Lv." << player.getLevel() << std::endl;
 
     drawHPBar("  HP", player.getHp(), player.getMaxHp(), COLOR_GREEN);
-    std::cout << "  ATK:" << player.getAttack() << "  DEF:" << player.getDefense() << std::endl;
+
+    // ⭐ 玩家ATB速度条
+    drawATBBar("  ATB", player.getAtbGauge(), COLOR_CYAN);
+    std::cout << "  ATK:" << player.getAttack() << "  DEF:" << player.getDefense() << "  SPD:" << player.getSpeed() << std::endl;
 
     std::cout << std::endl;
     std::cout << "               " COLOR_BOLD "VS" COLOR_RESET << std::endl;
@@ -171,7 +174,10 @@ void Render::drawBattleScreen(const Player& player, const Monster& monster,
     std::cout << std::endl;
 
     drawHPBar("  HP", monster.getHp(), monster.getMaxHp(), mColor);
-    std::cout << "  ATK:" << monster.getAttack() << "  DEF:" << monster.getDefense() << std::endl;
+
+    // ⭐ 怪物ATB速度条
+    drawATBBar("  ATB", monster.getAtbGauge(), COLOR_YELLOW);
+    std::cout << "  ATK:" << monster.getAttack() << "  DEF:" << monster.getDefense() << "  SPD:" << monster.getSpeed() << std::endl;
 
     // 分割线 + 战斗日志
     std::cout << COLOR_YELLOW << "──────────────────────────────────────────────────────" << COLOR_RESET << std::endl;

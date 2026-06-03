@@ -85,27 +85,39 @@ void Game::spawnMonsters(int count) {
 
         int level = player_->getFloor();
 
-        // 每层放精英怪/Boss
+        // ⭐ 20层难度曲线设计
+        // 第1-5层：新手区，简单怪
+        // 第6-10层：进阶区，加入哥布林和狼
+        // 第11-15层：困难区，怪物密度增加
+        // 第16-19层：精英区，每层有1个精英（死亡骑士）
+        // 第20层：最终Boss
+
         if (level >= MAX_FLOORS && placed == 0) {
-            // 第5层 → 最终Boss
+            // 第20层 → 最终Boss
             monsters_.push_back(new Boss(pos.first, pos.second));
-        } else if (level >= 4 && placed == 0) {
-            // 第4层 → 精英
+        } else if (level >= 16 && placed == 0) {
+            // 第16-19层 → 每层1个精英
             monsters_.push_back(new DeathKnight(pos.first, pos.second));
         } else {
-            // 小怪——按层数逐渐变强
+            // 小怪分布：按层数逐渐变强
             int r = rand() % 100;
-            if (level <= 2) {
-                // 前2层：简单怪
-                if (r < 45) monsters_.push_back(new Slime(pos.first, pos.second));
-                else if (r < 75) monsters_.push_back(new Bat(pos.first, pos.second));
+
+            if (level <= 5) {
+                // 第1-5层：新手区
+                if (r < 50) monsters_.push_back(new Slime(pos.first, pos.second));
+                else if (r < 80) monsters_.push_back(new Bat(pos.first, pos.second));
                 else monsters_.push_back(new Skeleton(pos.first, pos.second));
-            } else {
-                // 3层以后：加入哥布林和狼
-                if (r < 25) monsters_.push_back(new Slime(pos.first, pos.second));
-                else if (r < 45) monsters_.push_back(new Bat(pos.first, pos.second));
-                else if (r < 65) monsters_.push_back(new Skeleton(pos.first, pos.second));
+            } else if (level <= 10) {
+                // 第6-10层：进阶区
+                if (r < 30) monsters_.push_back(new Slime(pos.first, pos.second));
+                else if (r < 50) monsters_.push_back(new Bat(pos.first, pos.second));
+                else if (r < 70) monsters_.push_back(new Skeleton(pos.first, pos.second));
                 else if (r < 85) monsters_.push_back(new Goblin(pos.first, pos.second));
+                else monsters_.push_back(new Wolf(pos.first, pos.second));
+            } else {
+                // 第11-15层：困难区（强力怪物为主）
+                if (r < 20) monsters_.push_back(new Skeleton(pos.first, pos.second));
+                else if (r < 50) monsters_.push_back(new Goblin(pos.first, pos.second));
                 else monsters_.push_back(new Wolf(pos.first, pos.second));
             }
         }
@@ -147,23 +159,134 @@ void Game::addBattleLog(const std::string& msg) {
     battleLog_.push_back(msg);
 }
 
-// ⭐ 全屏战斗系统
+// ⭐ 全屏ATB战斗系统（速度条战斗）
 void Game::enterBattle(Monster* monster) {
     battleLog_.clear();
     addBattleLog("⚔ " + monster->getName() + " 出现了！");
 
+    // 重置双方ATB槽
+    player_->resetAtb();
+    monster->resetAtb();
+
     bool fleeing = false;
     bool playerDefeated = false;
 
+    // ⭐ ATB主循环：双方速度条同时增长
     while (monster->isAlive() && player_->isAlive() && !fleeing) {
-        // 渲染战斗画面
-        std::string prompt = "选择你的行动：";
+        // 速度条增长（每帧增长）
+        const float deltaTime = 1.0f;
+        player_->updateAtb(deltaTime);
+        monster->updateAtb(deltaTime);
+
+        // 渲染战斗画面（包含速度条）
+        std::string prompt = "等待行动中...";
+
+        // 检查谁的速度条满了
+        bool playerReady = player_->isAtbFull();
+        bool monsterReady = monster->isAtbFull();
+
+        if (playerReady) {
+            prompt = "你的回合！选择行动：";
+        }
+
         render_->drawBattleScreen(*player_, *monster, battleLog_, prompt);
 
-        char key = input_->getKey();
-        bool playerActed = false;
+        // ⭐ 玩家回合
+        if (playerReady) {
+            char key = input_->getKey();
+            bool playerActed = false;
 
-        switch (key) {
+            switch (key) {
+                case 'a': { // 攻击
+                    int dmg = Combat::calcDamage(player_->getAttack(), monster->getDefense());
+                    int actual = monster->takeDamage(dmg);
+                    addBattleLog("→ 你挥剑斩向" + monster->getName() + "！");
+                    addBattleLog("💥 造成 " + std::to_string(actual) + " 点伤害！");
+                    if (!monster->isAlive()) {
+                        addBattleLog("🏆 " + monster->getName() + " 被击败了！");
+                        addBattleLog("✨ 获得 " + std::to_string(monster->getExpReward()) + " 经验");
+                        addBattleLog("💰 获得 " + std::to_string(monster->getGoldReward()) + " 金币");
+                        render_->drawBattleScreen(*player_, *monster, battleLog_, "按任意键继续...");
+                        input_->getKey();
+                        player_->gainExp(monster->getExpReward());
+                        player_->addGold(monster->getGoldReward());
+                        return; // 战斗胜利，退出
+                    }
+                    playerActed = true;
+                    break;
+                }
+                case 'd': { // 防御
+                    addBattleLog("🛡 你举起盾牌防御！");
+                    playerActed = true;
+                    break;
+                }
+                case 'i': { // 使用道具
+                    auto inv = player_->getInventory();
+                    bool foundHeal = false;
+                    for (const auto& itemName : inv) {
+                        if (itemName.find("血瓶") != std::string::npos) {
+                            player_->useItem(itemName);
+                            int healAmt = (itemName.find("大") != std::string::npos) ? 20 : 8;
+                            player_->heal(healAmt);
+                            addBattleLog("♥ 使用了" + itemName + "，回复 " + std::to_string(healAmt) + " HP！");
+                            foundHeal = true;
+                            break;
+                        }
+                    }
+                    if (!foundHeal) {
+                        addBattleLog("❌ 背包里没有血瓶！");
+                        continue; // 不消耗回合
+                    }
+                    playerActed = true;
+                    break;
+                }
+                case 'f': { // 逃跑
+                    int chance = 50 + player_->getLevel() * 10;
+                    if (rand() % 100 < chance) {
+                        addBattleLog("🏃 你成功逃跑了！");
+                        render_->drawBattleScreen(*player_, *monster, battleLog_, "按任意键继续...");
+                        input_->getKey();
+                        fleeing = true;
+                    } else {
+                        addBattleLog("❌ 逃跑失败！");
+                        playerActed = true; // 逃跑失败也会消耗一回合
+                    }
+                    break;
+                }
+                default:
+                    continue; // 无效按键，不消耗回合
+            }
+
+            // ⭐ 行动后重置ATB
+            if (playerActed) {
+                player_->resetAtb();
+            }
+        }
+
+        // ⭐ 怪物回合
+        if (monsterReady && monster->isAlive() && !fleeing) {
+            int dmgReduction = 1;
+            int rawDmg = Combat::calcDamage(monster->getAttack(), player_->getDefense());
+            int actualDmg = rawDmg / dmgReduction;
+            player_->takeDamage(actualDmg);
+            addBattleLog("💥 " + monster->getName() + " 攻击！受到 " + std::to_string(actualDmg) + " 点伤害！");
+
+            if (!player_->isAlive()) {
+                addBattleLog("💀 你被 " + monster->getName() + " 击败了...");
+                render_->drawBattleScreen(*player_, *monster, battleLog_, "按任意键继续...");
+                input_->getKey();
+                playerDefeated = true;
+            }
+
+            // ⭐ 怪物行动后重置ATB
+            monster->resetAtb();
+        }
+    }
+
+    if (playerDefeated) {
+        gameOver();
+    }
+}
             case 'a': { // 攻击
                 int dmg = Combat::calcDamage(player_->getAttack(), monster->getDefense());
                 int actual = monster->takeDamage(dmg);

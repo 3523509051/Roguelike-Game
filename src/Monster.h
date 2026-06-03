@@ -11,7 +11,7 @@ protected:
 
 public:
     Monster(const std::string& name, char sym, int x, int y,
-            int hp, int atk, int def, int expR, int goldR);
+            int hp, int atk, int def, int expR, int goldR, int spd = 10);
 
     int getExpReward() const;
     int getGoldReward() const;

@@ -3,11 +3,13 @@ CXXFLAGS = -std=c++11 -Wall -Wextra -g
 SRC_DIR = src
 TEST_DIR = test
 
-# 所有源文件
+# 所有源文件（⭐已加入新文件）
 SRCS = $(SRC_DIR)/main.cpp $(SRC_DIR)/Map.cpp $(SRC_DIR)/Entity.cpp \
        $(SRC_DIR)/Player.cpp $(SRC_DIR)/Monster.cpp $(SRC_DIR)/Item.cpp \
        $(SRC_DIR)/Combat.cpp $(SRC_DIR)/Render.cpp $(SRC_DIR)/Input.cpp \
-       $(SRC_DIR)/Save.cpp $(SRC_DIR)/Game.cpp
+       $(SRC_DIR)/Save.cpp $(SRC_DIR)/Game.cpp \
+       $(SRC_DIR)/MapObject.cpp $(SRC_DIR)/Sound.cpp \
+       $(SRC_DIR)/Achievement.cpp $(SRC_DIR)/Shop.cpp
 OBJS = $(SRCS:.cpp=.o)
 TARGET = dungeon.exe
 
@@ -37,6 +39,11 @@ test_render: $(SRC_DIR)/Map.o $(SRC_DIR)/Entity.o $(SRC_DIR)/Player.o \
 		$(SRC_DIR)/Map.o $(SRC_DIR)/Entity.o $(SRC_DIR)/Player.o \
 		$(SRC_DIR)/Monster.o $(SRC_DIR)/Item.o $(SRC_DIR)/Render.o \
 		$(SRC_DIR)/Input.o $(SRC_DIR)/Save.o
+
+test_game: $(SRC_DIR)/Achievement.o $(SRC_DIR)/Shop.o $(SRC_DIR)/Player.o $(SRC_DIR)/Entity.o $(SRC_DIR)/Item.o
+	$(CXX) $(CXXFLAGS) -o test_game.exe $(TEST_DIR)/test_game.cpp \
+		$(SRC_DIR)/Achievement.o $(SRC_DIR)/Shop.o $(SRC_DIR)/Player.o \
+		$(SRC_DIR)/Entity.o $(SRC_DIR)/Item.o
 
 .PHONY: clean
 clean:

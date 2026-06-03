@@ -3,8 +3,8 @@
 #include <cmath>
 
 Monster::Monster(const std::string& name, char sym, int x, int y,
-                 int hp, int atk, int def, int expR, int goldR)
-    : Entity(name, sym, x, y, hp, hp, atk, def, 1),
+                 int hp, int atk, int def, int expR, int goldR, int spd)
+    : Entity(name, sym, x, y, hp, hp, atk, def, 1, spd),
       expReward_(expR), goldReward_(goldR) {}
 
 int Monster::getExpReward() const { return expReward_; }
@@ -34,26 +34,26 @@ static void moveRandom(Monster& m, const Map& map) {
     if (map.isWalkable(nx, ny)) m.setPos(nx, ny);
 }
 
-Slime::Slime(int x, int y) : Monster("史莱姆", 'M', x, y, 8, 3, 1, 8, 2) {}
+Slime::Slime(int x, int y) : Monster("史莱姆", 'M', x, y, 8, 3, 1, 8, 2, 8) {}
 void Slime::takeTurn(Player& player, const Map& map) {
     if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) return;
     moveRandom(*this, map);
 }
 
-Bat::Bat(int x, int y) : Monster("蝙蝠", 'B', x, y, 5, 5, 0, 10, 3) {}
+Bat::Bat(int x, int y) : Monster("蝙蝠", 'M', x, y, 5, 5, 0, 10, 3, 15) {}
 void Bat::takeTurn(Player& player, const Map& map) {
     if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) return;
     if (rand() % 100 < 40) moveToward(*this, player, map);
     else moveRandom(*this, map);
 }
 
-Skeleton::Skeleton(int x, int y) : Monster("骷髅", 'S', x, y, 15, 7, 3, 20, 8) {}
+Skeleton::Skeleton(int x, int y) : Monster("骷髅", 'M', x, y, 15, 7, 3, 20, 8, 10) {}
 void Skeleton::takeTurn(Player& player, const Map& map) {
     if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) return;
     moveToward(*this, player, map);
 }
 
-Boss::Boss(int x, int y) : Monster("地牢领主", 'B', x, y, 50, 12, 5, 100, 50), regenCounter_(0) {}
+Boss::Boss(int x, int y) : Monster("地牢领主", 'B', x, y, 50, 12, 5, 100, 50, 6), regenCounter_(0) {}  // ⭐速度6（Boss很慢但高攻高防）
 void Boss::takeTurn(Player& player, const Map& map) {
     (void)map; // Boss 不会移动
     if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) {
@@ -65,7 +65,7 @@ void Boss::takeTurn(Player& player, const Map& map) {
 }
 
 // ===== Goblin =====
-Goblin::Goblin(int x, int y) : Monster("哥布林", 'M', x, y, 12, 5, 2, 15, 5) {}
+Goblin::Goblin(int x, int y) : Monster("哥布林", 'M', x, y, 12, 5, 2, 15, 5, 11) {}  // ⭐速度11
 void Goblin::takeTurn(Player& player, const Map& map) {
     if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) return;
     // 50%概率追玩家
@@ -74,7 +74,7 @@ void Goblin::takeTurn(Player& player, const Map& map) {
 }
 
 // ===== Wolf =====
-Wolf::Wolf(int x, int y) : Monster("狼", 'M', x, y, 10, 7, 1, 18, 6) {}
+Wolf::Wolf(int x, int y) : Monster("狼", 'M', x, y, 10, 7, 1, 18, 6, 14) {}  // ⭐速度14（快）
 void Wolf::takeTurn(Player& player, const Map& map) {
     if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) return;
     // 70%追玩家，速度快
@@ -88,7 +88,7 @@ void Wolf::takeTurn(Player& player, const Map& map) {
 }
 
 // ===== DeathKnight =====
-DeathKnight::DeathKnight(int x, int y) : Monster("死亡骑士", 'B', x, y, 35, 10, 6, 60, 30) {}
+DeathKnight::DeathKnight(int x, int y) : Monster("死亡骑士", 'B', x, y, 35, 10, 6, 60, 30, 7) {}  // ⭐速度7（精英慢）
 void DeathKnight::takeTurn(Player& player, const Map& map) {
     (void)map; // 死亡骑士不会移动
     if (dist(x_, y_, player.getPos().first, player.getPos().second) <= 1) return;

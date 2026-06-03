@@ -13,7 +13,7 @@ const int PLAYER_INIT_DEF = 2;
 // ===== 每层生成数量 =====
 const int MONSTERS_PER_FLOOR = 8;
 const int ITEMS_PER_FLOOR = 5;
-const int MAX_FLOORS = 5;
+const int MAX_FLOORS = 20;  // ⭐改为20层
 
 // ===== 控制台颜色（可选） =====
 const bool ENABLE_COLOR = true;
