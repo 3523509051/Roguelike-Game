@@ -109,3 +109,313 @@ src/
 - Git工作流
 - 调试技巧
 - 测试指南
+
+## 接口与文件修改记录（D 游戏系统）
+
+本节记录 D 成员相关功能在控制台版本中的新增接口、调整接口和主要文件修改，便于后续维护和答辩说明。
+
+### 1. 公共枚举与类型
+
+#### `src/types.h`
+
+新增 `AchievementID` 枚举，统一管理 10 个成就 ID：
+
+```cpp
+enum class AchievementID {
+    FIRST_KILL,
+    RICH_MAN,
+    COMBO_MASTER,
+    ESCAPE_ARTIST,
+    DRAGON_SLAYER,
+    COLLECTOR,
+    IMMORTAL,
+    PERFECT_DEFENSE,
+    LOCKPICKER,
+    MAX_LEVEL
+};
+```
+
+#### `src/Item.h`
+
+扩展 `ItemType`，为商店系统补充新商品类型：
+
+```cpp
+KEY,
+REVIVE
+```
+
+### 2. 游戏主循环接口
+
+#### `src/Game.h`
+
+新增成员变量：
+
+```cpp
+AchievementManager* achievementMgr_;
+Shop* shop_;
+bool returnToMenu_;
+```
+
+新增公共方法：
+
+```cpp
+void showMainMenu();
+void newGame();
+void continueGame();
+void showAchievements();
+void showHelp();
+void openShop();
+```
+
+主要用途：
+
+- `showMainMenu()`：显示主菜单。
+- `newGame()`：重置游戏数据并开始新游戏。
+- `continueGame()`：读取存档并继续游戏。
+- `showAchievements()`：显示成就列表。
+- `showHelp()`：显示操作帮助。
+- `openShop()`：打开商店。
+
+#### `src/Game.cpp`
+
+主要修改：
+
+- 构造函数中初始化 `AchievementManager` 和 `Shop`。
+- 实现主菜单、继续游戏、成就页、帮助页、商店入口。
+- 游戏结束或胜利后返回主菜单。
+- 进入新楼层前调用商店。
+- 在战斗、拾取、升级、逃跑、死亡、胜利等事件中接入成就系统。
+
+### 3. 成就系统接口
+
+#### `src/Achievement.h`
+
+成就 ID 改为引用 `types.h` 中的 `AchievementID`：
+
+```cpp
+#include "types.h"
+```
+
+`AchievementManager` 新增/完善接口：
+
+```cpp
+void onMonsterKilled(const Monster& monster);
+void onGoldGained(int amount);
+void onPlayerHit();
+void onPlayerDeath();
+void onEscape();
+void onDefenseBlock(int dmg);
+void onChestOpened();
+void onItemPickup();
+void onItemCollected();
+void onLevelUp(int level);
+void onVictory();
+
+void displayAll() const;
+bool isUnlocked(AchievementID id) const;
+std::string getUnlockMask() const;
+void loadUnlockMask(const std::string& mask);
+
+void save(const std::string& filename) const;
+void load(const std::string& filename);
+```
+
+触发逻辑：
+
+- `FIRST_KILL`：第一次击杀怪物。
+- `RICH_MAN`：累计获得金币达到 500。
+- `COMBO_MASTER`：连续击杀 5 只怪物且期间未受伤。
+- `ESCAPE_ARTIST`：成功逃跑 10 次。
+- `DRAGON_SLAYER`：击败名字包含“地牢领主”或“Boss”的怪物。
+- `COLLECTOR`：拾取 50 个道具。
+- `IMMORTAL`：未死亡通关。
+- `PERFECT_DEFENSE`：累计防御抵挡 100 点伤害。
+- `LOCKPICKER`：打开 20 个宝箱。
+- `MAX_LEVEL`：等级达到 10。
+
+### 4. 商店系统接口
+
+#### `src/Shop.h`
+
+定义商品结构：
+
+```cpp
+struct ShopItem {
+    std::string name;
+    int price;
+    ItemType type;
+    int value;
+};
+```
+
+商店接口：
+
+```cpp
+Shop();
+void initItems();
+void open(Player& player, Render& render, Input& input);
+bool buyItem(Player& player, int index);
+```
+
+#### `src/Shop.cpp`
+
+主要修改：
+
+- 初始化 6 种商品：小血瓶、大血瓶、攻击卷轴、防御卷轴、钥匙、复活石。
+- 支持按 `1-6` 购买，`q` 退出。
+- 购买时检查金币是否足够。
+- 购买成功后扣除金币并加入玩家背包。
+
+### 5. 存档系统接口
+
+#### `src/Player.h`
+
+新增玩家状态恢复接口，用于读档：
+
+```cpp
+void loadState(int hp, int maxHp, int atk, int def, int level,
+               int exp, int expToNext, int gold, int floor,
+               int x, int y,
+               const std::vector<std::string>& inventory);
+```
+
+#### `src/Save.h`
+
+保留原有存档接口，同时新增支持成就系统的重载：
+
+```cpp
+static bool saveGame(const std::string& filename,
+                     const Player& player,
+                     const Map& map,
+                     const std::vector<Monster*>& monsters,
+                     const std::vector<Item*>& items,
+                     const AchievementManager& achMgr);
+
+static bool loadGame(const std::string& filename,
+                     Player& player,
+                     Map& map,
+                     std::vector<Monster*>& monsters,
+                     std::vector<Item*>& items,
+                     AchievementManager& achMgr);
+```
+
+#### `src/Save.cpp`
+
+主要修改：
+
+- 保存楼层、玩家属性、经验、金币、坐标、背包。
+- 保存成就掩码，例如 `0010110000`。
+- 保存地图字符数据。
+- 保存怪物类型、坐标、当前生命。
+- 保存道具类型、坐标、数值。
+- 读档时清理原有怪物和道具并重新创建。
+- 读档时通过 `Player::loadState()` 恢复玩家私有状态。
+- 读档时通过 `AchievementManager::loadUnlockMask()` 恢复成就状态。
+
+### 6. 输入与渲染修改
+
+#### `src/Input.cpp`
+
+`Input::getKey()` 接口签名保持不变：
+
+```cpp
+char getKey();
+```
+
+实现修改：
+
+- Windows 下改为读取控制台按键事件。
+- 支持即时按键，不需要回车。
+- 支持 WASD、方向键、空格、I/Q/F、数字键等。
+
+#### `src/Render.cpp`
+
+接口基本保持不变，主要修改内部显示：
+
+- 将英文标签改为中文：
+  - `HP` → `生命`
+  - `ATK` → `攻击`
+  - `DEF` → `防御`
+  - `ATB` → `行动条`
+  - `SPD` → `速度`
+- 血条和行动条改为 ASCII 风格，避免特殊字符乱码。
+- 去除部分容易乱码的 emoji 和特殊边框字符。
+- `clear()` 改为 ANSI 光标重绘方式，减少整屏刷新闪烁。
+
+### 7. 地图与怪物相关修复
+
+#### `src/Map.cpp`
+
+主要修改：
+
+- 修复 BSP 房间生成中 `rand() % 0` 导致的除零崩溃。
+- 房间过小时跳过生成，避免非法随机范围。
+- 增加保底房间生成逻辑。
+- 修复 BSP 子树连接逻辑，保证房间之间有走廊连通。
+
+#### `src/Monster.h`
+
+补充：
+
+```cpp
+#include "Player.h"
+```
+
+用于解决 `Monster::takeTurn(Player& player, ...)` 中 `Player` 类型未声明的问题。
+
+### 8. 测试程序
+
+#### `test/test_game.cpp`
+
+新增/重写游戏系统自测，覆盖：
+
+- 成就系统基本触发。
+- `FIRST_KILL` 解锁检查。
+- `RICH_MAN` 解锁检查。
+- 商店购买小血瓶。
+- 玩家金币和背包变化检查。
+- `Save::fileExists("save.dat")` 存档存在性检查。
+- 主菜单显示手动观察。
+
+### 9. 入口文件
+
+#### `src/main.cpp`
+
+入口改为先显示主菜单：
+
+```cpp
+int main() {
+    Game game;
+    game.showMainMenu();
+    return 0;
+}
+```
+
+Windows 下新增控制台 UTF-8 设置：
+
+```cpp
+SetConsoleOutputCP(CP_UTF8);
+SetConsoleCP(CP_UTF8);
+```
+
+### 10. CMake 配置
+
+#### `CMakeLists.txt`
+
+新增 CMake 构建配置，支持 Visual Studio 打开文件夹后识别目标：
+
+- `dungeon`：控制台游戏主程序。
+- `test_game`：游戏系统自测程序。
+- `dungeon_win32`：后续新增的 Win32 窗口版目标。
+
+其中控制台版本主要使用 `dungeon` 和 `test_game`。
+
+### 11. 已验证内容
+
+使用 Visual Studio 工具链完成过多次编译验证：
+
+- 控制台主程序可完整编译。
+- `test_game` 自测程序可编译运行。
+- `test_map` 地图测试可编译运行。
+- 地图生成不再出现除零崩溃。
+- 主菜单、即时按键、中文显示、成就、商店、存档相关链路已做基础验证。
