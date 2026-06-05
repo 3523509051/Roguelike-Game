@@ -81,15 +81,32 @@ static void createRoom(BSPNode* node, std::vector<std::vector<Tile>>& tiles,
                        std::vector<std::pair<int,int>>& rooms) {
     if (!node) return;
     if (node->isLeaf) {
-        // 在叶子节点内随机挖一个房间
-        int roomW = (rand() % 5) + 3;  // 3~7
-        int roomH = (rand() % 5) + 3;
-        int roomX = node->x + (rand() % (node->w - roomW - 1)) + 1;
-        int roomY = node->y + (rand() % (node->h - roomH - 1)) + 1;
+        // 在叶子节点内随机挖一个房间；空间过小时跳过，避免 rand() % 0。
+        if (node->w < 4 || node->h < 4) {
+            return;
+        }
+
+        int maxRoomW = std::min(7, node->w - 2);
+        int maxRoomH = std::min(7, node->h - 2);
+        int minRoomW = std::min(3, maxRoomW);
+        int minRoomH = std::min(3, maxRoomH);
+        if (maxRoomW <= 0 || maxRoomH <= 0) {
+            return;
+        }
+
+        int roomW = minRoomW + rand() % (maxRoomW - minRoomW + 1);
+        int roomH = minRoomH + rand() % (maxRoomH - minRoomH + 1);
+        int roomXRange = node->w - roomW - 1;
+        int roomYRange = node->h - roomH - 1;
+        int roomX = node->x + ((roomXRange > 0) ? rand() % roomXRange : 0) + 1;
+        int roomY = node->y + ((roomYRange > 0) ? rand() % roomYRange : 0) + 1;
 
         // 确保不超出地图范围
         if (roomX + roomW >= (int)tiles[0].size()) roomW = tiles[0].size() - roomX - 1;
         if (roomY + roomH >= (int)tiles.size())    roomH = tiles.size() - roomY - 1;
+        if (roomW <= 0 || roomH <= 0) {
+            return;
+        }
 
         for (int y = roomY; y < roomY + roomH; y++) {
             for (int x = roomX; x < roomX + roomW; x++) {
@@ -101,23 +118,6 @@ static void createRoom(BSPNode* node, std::vector<std::vector<Tile>>& tiles,
     } else {
         createRoom(node->left, tiles, rooms);
         createRoom(node->right, tiles, rooms);
-    }
-}
-
-static void connectBSP(BSPNode* node, std::vector<std::vector<Tile>>& tiles,
-                       void (*connectFn)(int,int,int,int,std::vector<std::vector<Tile>>&)) {
-    if (!node || node->isLeaf) return;
-    connectBSP(node->left, tiles, connectFn);
-    connectBSP(node->right, tiles, connectFn);
-
-    if (node->left && node->right &&
-        !node->left->isLeaf && !node->right->isLeaf) {
-        // 连接左右子树中的某一对房间
-        int x1 = node->left->roomCenter.first;
-        int y1 = node->left->roomCenter.second;
-        int x2 = node->right->roomCenter.first;
-        int y2 = node->right->roomCenter.second;
-        connectFn(x1, y1, x2, y2, tiles);
     }
 }
 
@@ -142,6 +142,29 @@ static void connectTiles(int x1, int y1, int x2, int y2,
     }
 }
 
+static std::pair<int, int> connectBSP(BSPNode* node, std::vector<std::vector<Tile>>& tiles) {
+    if (!node) return std::make_pair(-1, -1);
+    if (node->isLeaf) return node->roomCenter;
+
+    std::pair<int, int> leftCenter = connectBSP(node->left, tiles);
+    std::pair<int, int> rightCenter = connectBSP(node->right, tiles);
+
+    if (leftCenter.first >= 0 && rightCenter.first >= 0) {
+        connectTiles(leftCenter.first, leftCenter.second,
+                     rightCenter.first, rightCenter.second, tiles);
+        node->roomCenter = leftCenter;
+        return leftCenter;
+    }
+
+    if (leftCenter.first >= 0) {
+        node->roomCenter = leftCenter;
+        return leftCenter;
+    }
+
+    node->roomCenter = rightCenter;
+    return rightCenter;
+}
+
 void Map::generate() {
     fillWithWalls();
     rooms_.clear();
@@ -150,14 +173,22 @@ void Map::generate() {
     BSPNode* root = new BSPNode(1, 1, width_ - 2, height_ - 2);
     splitNode(root, minRoomSize);
     createRoom(root, tiles_, rooms_);
-    connectBSP(root, tiles_, connectTiles);
+    connectBSP(root, tiles_);
 
     delete root;
 
-    // 确保有房间，否则重试
-    if (rooms_.size() < 3) {
-        generate();
-        return;
+    // 确保有房间；极端切分失败时创建一个保底房间。
+    if (rooms_.empty()) {
+        int roomW = std::min(10, width_ - 2);
+        int roomH = std::min(8, height_ - 2);
+        int roomX = std::max(1, width_ / 2 - roomW / 2);
+        int roomY = std::max(1, height_ / 2 - roomH / 2);
+        for (int y = roomY; y < roomY + roomH && y < height_ - 1; ++y) {
+            for (int x = roomX; x < roomX + roomW && x < width_ - 1; ++x) {
+                tiles_[y][x] = Tile::FLOOR;
+            }
+        }
+        rooms_.push_back(std::make_pair(width_ / 2, height_ / 2));
     }
 
     // 在第一个房间放楼梯，最后一个房间放玩家出生点

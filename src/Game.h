@@ -1,4 +1,4 @@
-#ifndef GAME_H
+﻿#ifndef GAME_H
 #define GAME_H
 
 #include "Map.h"
@@ -8,6 +8,8 @@
 #include "Render.h"
 #include "Input.h"
 #include "Save.h"
+#include "Achievement.h"
+#include "Shop.h"
 #include <vector>
 #include <string>
 
@@ -19,9 +21,12 @@ private:
     std::vector<Item*> items_;
     Render* render_;
     Input* input_;
+    AchievementManager* achievementMgr_;
+    Shop* shop_;
     bool running_;
     bool gameOver_;
     bool victory_;
+    bool returnToMenu_;
     std::string message_;
 
 public:
@@ -29,6 +34,12 @@ public:
     ~Game();
 
     void run();      // 主循环
+    void showMainMenu();
+    void newGame();
+    void continueGame();
+    void showAchievements();
+    void showHelp();
+    void openShop();
 
 private:
     void init();         // 初始化第一层

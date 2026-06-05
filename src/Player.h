@@ -37,6 +37,9 @@ public:
 
     // 重置
     void reset(int startX, int startY);
+    void loadState(int hp, int maxHp, int atk, int def, int level,
+                   int exp, int expToNext, int gold, int floor,
+                   int x, int y, const std::vector<std::string>& inventory);
 };
 
 #endif // PLAYER_H

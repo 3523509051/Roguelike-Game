@@ -22,15 +22,9 @@ private:
 public:
     Shop();
 
-    // TODO: D实现 - 显示商店界面并处理购买
-    void open(Player& player, Render& render, Input& input);
-
-    // TODO: D实现 - 购买道具
-    bool buyItem(Player& player, int index);
-
-private:
-    // TODO: D实现 - 初始化商品列表
     void initItems();
+    void open(Player& player, Render& render, Input& input);
+    bool buyItem(Player& player, int index);
 };
 
 #endif // SHOP_H

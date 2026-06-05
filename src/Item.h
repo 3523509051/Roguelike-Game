@@ -8,7 +8,9 @@ enum class ItemType {
     HEAL_POTION,     // 回血
     ATTACK_BOOST,    // 加攻击
     DEFENSE_BOOST,   // 加防御
-    GOLD_COIN        // 金币
+    GOLD_COIN,       // 金币
+    KEY,             // 钥匙
+    REVIVE           // 复活石
 };
 
 class Item {

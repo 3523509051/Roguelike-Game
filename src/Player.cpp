@@ -16,7 +16,7 @@ void Player::gainExp(int amount) {
         attack_ += 2;
         defense_ += 1;
         hp_ = maxHp_;
-        std::cout << "🎉 升级了！现在是 Lv." << level_ << std::endl;
+        std::cout << "升级了！现在是 Lv." << level_ << std::endl;
     }
 }
 
@@ -60,4 +60,21 @@ void Player::reset(int startX, int startY) {
     floor_ = 1;
     gold_ = 0;
     inventory_.clear();
+}
+
+void Player::loadState(int hp, int maxHp, int atk, int def, int level,
+                       int exp, int expToNext, int gold, int floor,
+                       int x, int y, const std::vector<std::string>& inventory) {
+    hp_ = hp;
+    maxHp_ = maxHp;
+    attack_ = atk;
+    defense_ = def;
+    level_ = level;
+    exp_ = exp;
+    expToNext_ = expToNext;
+    gold_ = gold;
+    floor_ = floor;
+    x_ = x;
+    y_ = y;
+    inventory_ = inventory;
 }

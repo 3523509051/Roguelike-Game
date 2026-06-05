@@ -2,6 +2,7 @@
 #include "config.h"
 #include <iostream>
 #include <cstdlib>
+#include <sstream>
 
 // ===== ANSI 颜色转义序列 =====
 #define COLOR_RED     "\033[31m"
@@ -13,6 +14,11 @@
 #define COLOR_WHITE   "\033[37m"
 #define COLOR_RESET   "\033[0m"
 #define COLOR_BOLD    "\033[1m"
+
+static void drawHPBar(const std::string& label, int hp, int maxHp, const std::string& color);
+static void drawATBBar(const std::string& label, float gauge, const std::string& color);
+static void drawLine(char left, char fill, char right, int width);
+static void drawCenteredText(const std::string& text, int width);
 
 #ifdef _WIN32
 #include <windows.h>
@@ -32,30 +38,53 @@ Render::Render() {
 }
 
 void Render::clear() {
-#ifdef _WIN32
-    system("cls");
-#else
-    system("clear");
-#endif
+    std::cout << "\033[H\033[J";
+}
+
+static void drawLine(char left, char fill, char right, int width) {
+    std::cout << left;
+    for (int i = 0; i < width; ++i) {
+        std::cout << fill;
+    }
+    std::cout << right << std::endl;
+}
+
+static void drawCenteredText(const std::string& text, int width) {
+    int padding = width - static_cast<int>(text.size());
+    if (padding < 0) padding = 0;
+    int left = padding / 2;
+    int right = padding - left;
+    std::cout << "|";
+    for (int i = 0; i < left; ++i) std::cout << " ";
+    std::cout << text;
+    for (int i = 0; i < right; ++i) std::cout << " ";
+    std::cout << "|" << std::endl;
 }
 
 void Render::drawHUD(const Player& player, int currentFloor) {
-    std::cout << COLOR_CYAN << "═══════════════════════════════════════════════════" << COLOR_RESET << std::endl;
-    std::cout << COLOR_BOLD;
-    std::cout << "  地牢地下";
-    for (int i = 0; i < currentFloor; i++) std::cout << "·";
-    std::cout << "  HP: " << player.getHp() << "/" << player.getMaxHp();
-    std::cout << "  ATK: " << player.getAttack() << "  DEF: " << player.getDefense();
-    std::cout << "  金币: " << player.getGold();
-    std::cout << "  层数: " << currentFloor << "/" << MAX_FLOORS;
-    std::cout << COLOR_RESET << std::endl;
-    std::cout << COLOR_CYAN << "═══════════════════════════════════════════════════" << COLOR_RESET << std::endl;
+    std::cout << COLOR_CYAN;
+    drawLine('+', '=', '+', 63);
+    std::cout << COLOR_RESET;
+    std::ostringstream oss;
+    oss << "地牢地下  第 " << currentFloor << " 层 / " << MAX_FLOORS
+        << "    生命 " << player.getHp() << "/" << player.getMaxHp()
+        << "    攻击 " << player.getAttack()
+        << "    防御 " << player.getDefense()
+        << "    金币 " << player.getGold();
+    drawCenteredText(oss.str(), 63);
+    std::cout << COLOR_CYAN;
+    drawLine('+', '=', '+', 63);
+    std::cout << COLOR_RESET;
 }
 
 void Render::drawMessage(const std::string& msg) {
-    std::cout << COLOR_YELLOW << "───────────────────────────────────────────────────" << COLOR_RESET << std::endl;
-    std::cout << msg << std::endl;
-    std::cout << COLOR_YELLOW << "───────────────────────────────────────────────────" << COLOR_RESET << std::endl;
+    std::cout << COLOR_YELLOW;
+    drawLine('+', '-', '+', 63);
+    std::cout << COLOR_RESET;
+    std::cout << " " << msg << std::endl;
+    std::cout << COLOR_YELLOW;
+    drawLine('+', '-', '+', 63);
+    std::cout << COLOR_RESET;
 }
 
 void Render::drawAll(const Map& map, const Player& player,
@@ -118,23 +147,25 @@ void Render::drawAll(const Map& map, const Player& player,
     }
 
     // 底部图例
-    std::cout << "  " COLOR_RED "@=你" COLOR_RESET "  #=壁  .=路  ";
-    std::cout << COLOR_RED "M=小怪" COLOR_RESET "  ";
-    std::cout << COLOR_MAGENTA "B=Boss" COLOR_RESET "  ";
-    std::cout << COLOR_RED "♥=血瓶" COLOR_RESET "  ";
-    std::cout << COLOR_YELLOW "$=金币" COLOR_RESET "  ";
-    std::cout << COLOR_GREEN ">=楼梯" COLOR_RESET "  ";
-    std::cout << "⚔=卷轴" << std::endl;
+    std::cout << "  说明: ";
+    std::cout << COLOR_RED << "@=你" << COLOR_RESET << "  ";
+    std::cout << "#=墙  .=路  ";
+    std::cout << COLOR_RED << "M=怪物" << COLOR_RESET << "  ";
+    std::cout << COLOR_MAGENTA << "B=Boss" << COLOR_RESET << "  ";
+    std::cout << COLOR_RED << "H=血瓶" << COLOR_RESET << "  ";
+    std::cout << COLOR_YELLOW << "$=金币" << COLOR_RESET << "  ";
+    std::cout << COLOR_GREEN << ">=楼梯" << COLOR_RESET << "  ";
+    std::cout << "A/D=卷轴" << std::endl;
     drawMessage(message);
-    std::cout << "  [wasd移动] [空格待机] [i背包] [q退出]" << std::endl;
+    std::cout << "  操作: [WASD移动] [空格待机] [I背包] [Q退出]" << std::endl;
 }
 
 void Render::drawGameOver(int floor, int gold) {
     clear();
     std::cout << std::endl;
-    std::cout << "  ╔══════════════════════╗" << std::endl;
-    std::cout << "  ║     💀 游戏结束 💀    ║" << std::endl;
-    std::cout << "  ╚══════════════════════╝" << std::endl;
+    std::cout << "  +----------------------+" << std::endl;
+    std::cout << "  |       游戏结束       |" << std::endl;
+    std::cout << "  +----------------------+" << std::endl;
     std::cout << std::endl;
     std::cout << "  到达层数: " << floor << std::endl;
     std::cout << "  获得金币: " << gold << std::endl;
@@ -148,39 +179,43 @@ void Render::drawBattleScreen(const Player& player, const Monster& monster,
 
     // 顶栏标题
     std::cout << COLOR_BOLD << COLOR_RED;
-    std::cout << "╔══════════════════════ ⚔ 战斗 ⚔ ═════════════════════╗" << std::endl;
+    drawLine('+', '=', '+', 62);
+    drawCenteredText("战斗", 62);
+    drawLine('+', '=', '+', 62);
     std::cout << COLOR_RESET;
 
     // 玩家信息
-    std::cout << COLOR_BOLD << COLOR_GREEN << "  🗡️  " << COLOR_RESET;
+    std::cout << COLOR_BOLD << COLOR_GREEN << "  玩家  " << COLOR_RESET;
     std::cout << COLOR_BOLD << player.getName() << COLOR_RESET;
     std::cout << "  Lv." << player.getLevel() << std::endl;
 
-    drawHPBar("  HP", player.getHp(), player.getMaxHp(), COLOR_GREEN);
+    drawHPBar("  生命", player.getHp(), player.getMaxHp(), COLOR_GREEN);
 
     // ⭐ 玩家ATB速度条
-    drawATBBar("  ATB", player.getAtbGauge(), COLOR_CYAN);
-    std::cout << "  ATK:" << player.getAttack() << "  DEF:" << player.getDefense() << "  SPD:" << player.getSpeed() << std::endl;
+    drawATBBar("  行动条", player.getAtbGauge(), COLOR_CYAN);
+    std::cout << "  攻击:" << player.getAttack() << "  防御:" << player.getDefense() << "  速度:" << player.getSpeed() << std::endl;
 
     std::cout << std::endl;
-    std::cout << "               " COLOR_BOLD "VS" COLOR_RESET << std::endl;
+    drawCenteredText("VS", 62);
     std::cout << std::endl;
 
     // 怪物信息
     std::string mColor = monster.isBoss() ? COLOR_MAGENTA : COLOR_RED;
-    std::cout << COLOR_BOLD << mColor << "  👹  " << COLOR_RESET;
+    std::cout << COLOR_BOLD << mColor << "  怪物  " << COLOR_RESET;
     std::cout << mColor << COLOR_BOLD << monster.getName() << COLOR_RESET;
-    if (monster.isBoss()) std::cout << COLOR_MAGENTA << " ★BOSS★" << COLOR_RESET;
+    if (monster.isBoss()) std::cout << COLOR_MAGENTA << " [BOSS]" << COLOR_RESET;
     std::cout << std::endl;
 
-    drawHPBar("  HP", monster.getHp(), monster.getMaxHp(), mColor);
+    drawHPBar("  生命", monster.getHp(), monster.getMaxHp(), mColor);
 
     // ⭐ 怪物ATB速度条
-    drawATBBar("  ATB", monster.getAtbGauge(), COLOR_YELLOW);
-    std::cout << "  ATK:" << monster.getAttack() << "  DEF:" << monster.getDefense() << "  SPD:" << monster.getSpeed() << std::endl;
+    drawATBBar("  行动条", monster.getAtbGauge(), COLOR_YELLOW);
+    std::cout << "  攻击:" << monster.getAttack() << "  防御:" << monster.getDefense() << "  速度:" << monster.getSpeed() << std::endl;
 
     // 分割线 + 战斗日志
-    std::cout << COLOR_YELLOW << "──────────────────────────────────────────────────────" << COLOR_RESET << std::endl;
+    std::cout << COLOR_YELLOW;
+    drawLine('+', '-', '+', 62);
+    std::cout << COLOR_RESET;
     int logLines = battleLog.size();
     int startIdx = (logLines > 4) ? logLines - 4 : 0;
     for (int i = startIdx; i < logLines; i++) {
@@ -189,11 +224,13 @@ void Render::drawBattleScreen(const Player& player, const Monster& monster,
     if (logLines == 0) std::cout << "  战斗开始！" << std::endl;
 
     // 操作提示
-    std::cout << COLOR_YELLOW << "──────────────────────────────────────────────────────" << COLOR_RESET << std::endl;
+    std::cout << COLOR_YELLOW;
+    drawLine('+', '-', '+', 62);
+    std::cout << COLOR_RESET;
     std::cout << COLOR_BOLD << prompt << COLOR_RESET << std::endl;
     std::cout << "  [a]攻击  [d]防御(-50%伤害)  [i]使用道具  [f]逃跑(" << (50 + player.getLevel() * 10) << "%)" << std::endl;
     std::cout << COLOR_RED << COLOR_BOLD;
-    std::cout << "╚══════════════════════════════════════════════════════╝" << std::endl;
+    drawLine('+', '=', '+', 62);
     std::cout << COLOR_RESET;
 }
 
@@ -204,20 +241,34 @@ static void drawHPBar(const std::string& label, int hp, int maxHp, const std::st
     if (filled < 0) filled = 0;
     if (filled > barWidth) filled = barWidth;
 
-    std::cout << label << ": " << color;
+    std::cout << label << ": " << color << "[";
     for (int i = 0; i < barWidth; i++) {
-        if (i < filled) std::cout << '█';
-        else std::cout << '░';
+        if (i < filled) std::cout << '#';
+        else std::cout << '-';
     }
-    std::cout << COLOR_RESET << "  " << hp << "/" << maxHp << std::endl;
+    std::cout << "]" << COLOR_RESET << "  " << hp << "/" << maxHp << std::endl;
+}
+
+static void drawATBBar(const std::string& label, float gauge, const std::string& color) {
+    int barWidth = 20;
+    int filled = static_cast<int>(gauge * barWidth / 100.0f);
+    if (filled < 0) filled = 0;
+    if (filled > barWidth) filled = barWidth;
+
+    std::cout << label << ": " << color << "[";
+    for (int i = 0; i < barWidth; i++) {
+        if (i < filled) std::cout << '#';
+        else std::cout << '-';
+    }
+    std::cout << "]" << COLOR_RESET << "  " << static_cast<int>(gauge) << "/100" << std::endl;
 }
 
 void Render::drawVictory() {
     clear();
     std::cout << std::endl;
-    std::cout << "  ╔══════════════════════╗" << std::endl;
-    std::cout << "  ║  🏆 恭喜通关！ 🏆   ║" << std::endl;
-    std::cout << "  ╚══════════════════════╝" << std::endl;
+    std::cout << "  +----------------------+" << std::endl;
+    std::cout << "  |       恭喜通关       |" << std::endl;
+    std::cout << "  +----------------------+" << std::endl;
     std::cout << std::endl;
     std::cout << "  你成功击败了地牢领主，逃出了地牢！" << std::endl;
     std::cout << std::endl;
