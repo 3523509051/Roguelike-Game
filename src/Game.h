@@ -27,6 +27,7 @@ private:
     bool gameOver_;
     bool victory_;
     bool returnToMenu_;
+    bool hasUnsavedChanges_;
     std::string message_;
 
 public:
@@ -55,6 +56,8 @@ private:
     void gameOver();
     void victory();
     void showInventory();
+    bool saveCurrentGame();
+    bool confirmSaveBeforeExit();
 
     void setMessage(const std::string& msg);
 

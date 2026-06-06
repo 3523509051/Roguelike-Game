@@ -1,3 +1,122 @@
+# 最新修改记录：存档交互补充（2026-06-06）
+
+本次修改围绕“玩家可主动保存、商店内可保存、退出前提醒未保存进度”完成。
+
+## 修改文件
+
+### src/Input.cpp
+
+- 新增 `P` 按键映射：`P` 转为内部按键 `p`，用于手动保存。
+- 新增 `Y/N/C` 按键映射，用于退出前保存确认。
+
+### src/Game.h
+
+新增成员变量：
+
+```cpp
+bool hasUnsavedChanges_;
+```
+
+新增私有方法：
+
+```cpp
+bool saveCurrentGame();
+bool confirmSaveBeforeExit();
+```
+
+### src/Game.cpp
+
+新增统一保存函数：
+
+```cpp
+bool Game::saveCurrentGame();
+```
+
+主要逻辑：
+
+```cpp
+Save::saveGame(SAVE_FILE, *player_, *map_, monsters_, items_, *achievementMgr_);
+```
+
+交互变化：
+
+- 主地图按 `P`：手动保存当前游戏。
+- 保存成功后提示“保存成功。”。
+- 保存失败后提示“保存失败。”。
+- 主地图按 `Q`：如果当前进度未保存，会先提醒玩家选择是否保存。
+- 退出提醒选项：
+  - `Y`：保存并退出
+  - `N`：不保存退出
+  - `C`：取消退出
+
+未保存状态规则：
+
+- 新游戏开始后标记为未保存。
+- 读档成功后标记为已保存。
+- 玩家进行移动、等待等有效行动后标记为未保存。
+- 保存成功后标记为已保存。
+- 商店返回后保守标记为未保存，避免购买行为未被保存。
+
+`Game::openShop()` 改为向商店传入保存回调：
+
+```cpp
+shop_->open(*player_, *render_, *input_, [this]() {
+    return saveCurrentGame();
+});
+```
+
+### src/Shop.h
+
+新增头文件：
+
+```cpp
+#include <functional>
+```
+
+保留原商店入口：
+
+```cpp
+void open(Player& player, Render& render, Input& input);
+```
+
+新增带保存回调的商店入口：
+
+```cpp
+void open(Player& player, Render& render, Input& input,
+          const std::function<bool()>& saveCallback);
+```
+
+### src/Shop.cpp
+
+商店页面底部提示新增保存按钮：
+
+```text
+[1-6] 道具  [7-0] 技能  [p] 保存  [q] 离开
+```
+
+商店内按 `P` 时：
+
+- 调用 `saveCallback()` 保存当前游戏。
+- 保存成功显示“保存成功。”。
+- 保存失败显示“保存失败。”。
+
+## 当前存档操作方式
+
+- 主地图按 `P`：保存当前游戏。
+- 商店页面按 `P`：保存当前游戏。
+- 主地图按 `Q`：如果有未保存进度，会询问是否保存后退出。
+- 主菜单按 `2`：读取 `save.dat` 继续游戏。
+
+## 验证结果
+
+已使用 Visual Studio x64 开发者环境重新编译通过：
+
+```text
+[7/8] Linking CXX executable test_game.exe
+[8/8] Linking CXX executable dungeon.exe
+```
+
+---
 # 🗡️ 终端 Roguelike 地牢探险游戏
 
 一个纯 C++ 命令行 Roguelike 游戏，不依赖任何第三方库。

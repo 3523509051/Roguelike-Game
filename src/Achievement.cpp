@@ -14,6 +14,10 @@ void Achievement::unlock() {
     }
 }
 
+void Achievement::setUnlocked(bool unlocked) {
+    unlocked_ = unlocked;
+}
+
 bool Achievement::isUnlocked() const {
     return unlocked_;
 }
@@ -188,9 +192,7 @@ std::string AchievementManager::getUnlockMask() const {
 void AchievementManager::loadUnlockMask(const std::string& mask) {
     const std::size_t count = (mask.size() < achievements_.size()) ? mask.size() : achievements_.size();
     for (std::size_t i = 0; i < count; ++i) {
-        if (mask[i] == '1') {
-            achievements_[i].unlock();
-        }
+        achievements_[i].setUnlocked(mask[i] == '1');
     }
 }
 

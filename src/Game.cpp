@@ -32,7 +32,8 @@ Game::Game()
       running_(false),
       gameOver_(false),
       victory_(false),
-      returnToMenu_(false) {
+      returnToMenu_(false),
+      hasUnsavedChanges_(false) {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
     render_ = new Render();
     input_ = new Input();
@@ -100,7 +101,8 @@ void Game::newGame() {
     delete achievementMgr_;
     achievementMgr_ = new AchievementManager();
 
-    returnToMenu_ = true;
+    returnToMenu_ = false;
+    hasUnsavedChanges_ = true;
     init();
     run();
 }
@@ -132,7 +134,8 @@ void Game::continueGame() {
     running_ = true;
     gameOver_ = false;
     victory_ = false;
-    returnToMenu_ = true;
+    returnToMenu_ = false;
+    hasUnsavedChanges_ = false;
     setMessage("读取存档成功。");
     run();
 }
@@ -155,6 +158,7 @@ void Game::showHelp() {
     std::cout << "   WASD / 方向键  移动" << std::endl;
     std::cout << "   空格           等待一回合" << std::endl;
     std::cout << "   I              查看背包" << std::endl;
+    std::cout << "   P              保存游戏" << std::endl;
     std::cout << "   Q              退出当前游戏" << std::endl;
     std::cout << std::endl;
     std::cout << " 战斗操作" << std::endl;
@@ -170,7 +174,58 @@ void Game::showHelp() {
 
 void Game::openShop() {
     if (player_ != nullptr && render_ != nullptr && input_ != nullptr && shop_ != nullptr) {
-        shop_->open(*player_, *render_, *input_);
+        shop_->open(*player_, *render_, *input_, [this]() {
+            return saveCurrentGame();
+        });
+        hasUnsavedChanges_ = true;
+    }
+}
+
+bool Game::saveCurrentGame() {
+    if (map_ == nullptr || player_ == nullptr || achievementMgr_ == nullptr) {
+        return false;
+    }
+
+    const bool saved = Save::saveGame(SAVE_FILE, *player_, *map_, monsters_, items_, *achievementMgr_);
+    if (saved) {
+        hasUnsavedChanges_ = false;
+    }
+    return saved;
+}
+
+bool Game::confirmSaveBeforeExit() {
+    if (!hasUnsavedChanges_) {
+        return true;
+    }
+
+    render_->clear();
+    std::cout << "+--------------------------------+" << std::endl;
+    std::cout << "|            退出游戏            |" << std::endl;
+    std::cout << "+--------------------------------+" << std::endl;
+    std::cout << " 当前进度尚未保存，是否保存后退出？" << std::endl;
+    std::cout << " [Y] 保存并退出  [N] 不保存退出  [C] 取消" << std::endl;
+    std::cout << "请选择: ";
+
+    while (true) {
+        const char key = input_->getKey();
+        std::cout << key << std::endl;
+        if (key == 'y' || key == 'Y') {
+            if (saveCurrentGame()) {
+                setMessage("保存成功，游戏已退出。");
+                return true;
+            }
+            setMessage("保存失败，已取消退出。");
+            waitForEnter();
+            return false;
+        }
+        if (key == 'n' || key == 'N') {
+            setMessage("游戏已退出，当前进度未保存。");
+            return true;
+        }
+        if (key == 'c' || key == 'C' || key == 'q' || key == 'Q') {
+            setMessage("已取消退出。");
+            return false;
+        }
     }
 }
 
@@ -189,10 +244,6 @@ void Game::run() {
         }
     }
 
-    if (returnToMenu_) {
-        returnToMenu_ = false;
-        showMainMenu();
-    }
 }
 
 void Game::init() {
@@ -571,10 +622,22 @@ void Game::update(char key) {
         case 'd': movePlayer(1, 0); break;
         case ' ': setMessage("你停了一回合。"); break;
         case 'i': showInventory(); break;
-        case 'q': running_ = false; setMessage("游戏已退出。"); break;
+        case 'p':
+            if (saveCurrentGame()) {
+                setMessage("保存成功。");
+            } else {
+                setMessage("保存失败。");
+            }
+            return;
+        case 'q':
+            if (confirmSaveBeforeExit()) {
+                running_ = false;
+            }
+            return;
         default: return;
     }
 
+    hasUnsavedChanges_ = true;
     processMonsters();
     checkEvents();
 }

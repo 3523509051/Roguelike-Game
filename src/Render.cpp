@@ -243,7 +243,7 @@ void Render::drawAll(const Map& map, const Player& player,
     b << COLOR_GREEN << ">=楼梯" << COLOR_RESET << "  卷轴\n";
 
     drawMessage(b, message);
-    b << "  [WASD移动] [空格待机] [I背包] [Q退出]\n";
+    b << "  [WASD移动] [空格待机] [I背包] [P保存] [Q退出]\n";
 
     flushFrame(b.str());
 }

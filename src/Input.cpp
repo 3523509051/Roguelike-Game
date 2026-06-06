@@ -52,8 +52,12 @@ char Input::getKey() {
             case 'S': result = 's'; break;
             case 'D': result = 'd'; break;
             case 'I': result = 'i'; break;
+            case 'P': result = 'p'; break;
             case 'Q': result = 'q'; break;
             case 'F': result = 'f'; break;
+            case 'Y': result = 'y'; break;
+            case 'N': result = 'n'; break;
+            case 'C': result = 'c'; break;
             case '1': result = '1'; break;
             case '2': result = '2'; break;
             case '3': result = '3'; break;

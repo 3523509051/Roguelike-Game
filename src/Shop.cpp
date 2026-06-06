@@ -22,6 +22,10 @@ void Shop::initItems() {
 }
 
 void Shop::open(Player& player, Render& render, Input& input) {
+    open(player, render, input, nullptr);
+}
+
+void Shop::open(Player& player, Render& render, Input& input, const std::function<bool()>& saveCallback) {
     (void)render;
 
     bool shopping = true;
@@ -59,7 +63,7 @@ void Shop::open(Player& player, Render& render, Input& input) {
         }
 
         std::cout << "------------------------------" << std::endl;
-        std::cout << "[1-6] 道具  [7-0] 技能  [q] 离开" << std::endl;
+        std::cout << "[1-6] 道具  [7-0] 技能  [p] 保存  [q] 离开" << std::endl;
         std::cout << "请选择: ";
 
         char key = input.getKey();
@@ -67,6 +71,12 @@ void Shop::open(Player& player, Render& render, Input& input) {
 
         if (key == 'q' || key == 'Q') {
             shopping = false;
+        } else if (key == 'p' || key == 'P') {
+            if (saveCallback && saveCallback()) {
+                std::cout << "保存成功。" << std::endl;
+            } else {
+                std::cout << "保存失败。" << std::endl;
+            }
         } else if (key >= '1' && key <= '6') {
             buyItem(player, key - '1');
         } else if (key == '7' || key == '8' || key == '9' || key == '0') {

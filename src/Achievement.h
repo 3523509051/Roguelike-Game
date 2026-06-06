@@ -18,6 +18,7 @@ public:
     Achievement(AchievementID id, const std::string& name, const std::string& desc);
 
     void unlock();
+    void setUnlocked(bool unlocked);
     bool isUnlocked() const;
     std::string getName() const;
     std::string getDesc() const;

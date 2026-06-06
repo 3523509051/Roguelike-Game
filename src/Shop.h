@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 #include "Player.h"
 #include "Item.h"
 #include "Render.h"
@@ -24,6 +25,7 @@ public:
 
     void initItems();
     void open(Player& player, Render& render, Input& input);
+    void open(Player& player, Render& render, Input& input, const std::function<bool()>& saveCallback);
     bool buyItem(Player& player, int index);
 };
 
