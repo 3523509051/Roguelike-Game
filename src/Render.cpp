@@ -110,6 +110,28 @@ void Render::clear() {
 #endif
 }
 
+// ===== public wrappers (backward-compatible, for old callers) =====
+
+void Render::drawHUD(const Player& player, int currentFloor) {
+    drawHUD(std::cout, player, currentFloor);
+}
+
+void Render::drawMap(const Map& map) {
+    (void)map;
+    // deprecated — use drawAll()
+}
+
+void Render::drawEntities(const Player& player,
+                          const std::vector<Monster*>& monsters,
+                          const std::vector<Item*>& items) {
+    (void)player; (void)monsters; (void)items;
+    // deprecated — use drawAll()
+}
+
+void Render::drawMessage(const std::string& msg) {
+    drawMessage(std::cout, msg);
+}
+
 // ===== internal draw helpers (write to ostream) =====
 
 void Render::drawHUD(std::ostream& out, const Player& player, int currentFloor) {
@@ -204,12 +226,12 @@ void Render::drawAll(const Map& map, const Player& player,
 
     // Legend
     b << "  Legend: ";
-    b << COLOR_GREEN << "@=You" << COLOR_RESET << "  #=Wall  .=Floor  ";
-    b << COLOR_RED << "M=Monster" << COLOR_RESET << "  ";
+    b << COLOR_GREEN << "@=你" << COLOR_RESET << "  #=Wall  .=Floor  ";
+    b << COLOR_RED << "M=怪物" << COLOR_RESET << "  ";
     b << COLOR_MAGENTA << "B=Boss" << COLOR_RESET << "  ";
     b << COLOR_RED << "H=Potion" << COLOR_RESET << "  ";
-    b << COLOR_YELLOW << "$=Gold" << COLOR_RESET << "  ";
-    b << COLOR_GREEN << ">=Stairs" << COLOR_RESET << "  A/D=Scroll\n";
+    b << COLOR_YELLOW << "$=马内" << COLOR_RESET << "  ";
+    b << COLOR_GREEN << ">=楼梯" << COLOR_RESET << "  A/D=Scroll\n";
 
     drawMessage(b, message);
     b << "  [WASD move] [Space wait] [I inventory] [Q quit]\n";
@@ -272,7 +294,7 @@ void Render::drawBattleScreen(const Player& player, const Monster& monster,
     drawLine(b, '+', '-', '+', 62);
     b << COLOR_RESET;
     b << COLOR_BOLD << prompt << COLOR_RESET << '\n';
-    b << "  [a]Attack  [d]Defend(-50%)  [i]Item  [f]Flee("
+    b << "  [a]攻击  [d]防御(-50%)  [i]物品  [f]当逃兵("
       << (50 + player.getLevel() * 10) << "%)\n";
     b << COLOR_RED << COLOR_BOLD;
     drawLine(b, '+', '=', '+', 62);
