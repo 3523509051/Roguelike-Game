@@ -83,9 +83,9 @@ int main() {
     // 测试6：Item 创建
     std::cout << "\n测试6：道具系统" << std::endl;
     {
-        Item potion("小血瓶", '♥', ItemType::HEAL_POTION, 8, 10, 10);
+        Item potion("小血瓶", 'H', ItemType::HEAL_POTION, 8, 10, 10);
         assert(potion.getName() == "小血瓶");
-        assert(potion.getSymbol() == '♥');
+        assert(potion.getSymbol() == 'H');
         assert(potion.getValue() == 8);
         assert(potion.getPos().first == 10);
         std::cout << "  ✅ 道具创建和读取正常" << std::endl;
@@ -122,6 +122,85 @@ int main() {
         assert(dk.isBoss() == true);
         assert(slime.isBoss() == false);
         std::cout << "  ✅ 7种怪物创建+isBoss()检测正常" << std::endl;
+    }
+
+    // 测试9：ATB速度条增长
+    std::cout << "\n测试9：ATB速度条增长" << std::endl;
+    {
+        Player player(5, 5);
+        Slime slime(7, 7);
+        // 初始ATB均为0
+        assert(player.getAtbGauge() == 0.0f);
+        assert(slime.getAtbGauge() == 0.0f);
+
+        // 更新ATB（deltaTime=1.0）
+        player.updateAtb(1.0f);   // 玩家速度10 → +10
+        slime.updateAtb(1.0f);    // 史莱姆速度8 → +8
+
+        assert(player.getAtbGauge() == 10.0f);
+        assert(slime.getAtbGauge() == 8.0f);
+        std::cout << "  玩家ATB: " << player.getAtbGauge() << "/100 (速度10)" << std::endl;
+        std::cout << "  史莱姆ATB: " << slime.getAtbGauge() << "/100 (速度8)" << std::endl;
+        std::cout << "  ✅ 速度越快ATB增长越快" << std::endl;
+
+        // 测试resetAtb
+        player.resetAtb();
+        assert(player.getAtbGauge() == 0.0f);
+        std::cout << "  ✅ resetAtb()归零正常" << std::endl;
+
+        // 测试isAtbFull
+        Bat bat(0, 0);  // 速度15
+        for (int i = 0; i < 7; i++) bat.updateAtb(1.0f);  // 7×15=105 → 满
+        assert(bat.isAtbFull());
+        std::cout << "  ✅ isAtbFull()检测正常" << std::endl;
+    }
+
+    // 测试10：Boss回血（onBattleTick 每3回合回血5）
+    std::cout << "\n测试10：Boss回血（每3回合回血5）" << std::endl;
+    {
+        Boss boss(10, 10);
+        boss.takeDamage(20);  // 先扣20血：50 → 30
+        int startHp = boss.getHp();  // 30
+        std::cout << "  初始HP(受伤后): " << startHp << std::endl;
+
+        // 前2回合不回血
+        Combat::onBattleTurn(boss);
+        assert(boss.getHp() == startHp);
+        Combat::onBattleTurn(boss);
+        assert(boss.getHp() == startHp);
+        std::cout << "  前2回合 HP不变: " << boss.getHp() << std::endl;
+
+        // 第3回合回血5
+        Combat::onBattleTurn(boss);
+        assert(boss.getHp() == startHp + 5);
+        std::cout << "  第3回合 HP+5: " << boss.getHp() << std::endl;
+
+        // 再3回合
+        Combat::onBattleTurn(boss);
+        Combat::onBattleTurn(boss);
+        Combat::onBattleTurn(boss);
+        assert(boss.getHp() == startHp + 10);
+        std::cout << "  第6回合 HP再+5: " << boss.getHp() << std::endl;
+
+        // 回血不超过最大HP
+        // 继续回血直到超过上限，验证不会超出 maxHp
+        for (int i = 0; i < 30; i++) {
+            Combat::onBattleTurn(boss);
+        }
+        assert(boss.getHp() <= boss.getMaxHp());
+        std::cout << "  ✅ Boss回血不超过上限: " << boss.getHp() << " / " << boss.getMaxHp() << std::endl;
+    }
+
+    // 测试11：DeathKnight 无回血
+    std::cout << "\n测试11：死亡骑士无回血" << std::endl;
+    {
+        DeathKnight dk(10, 10);
+        int startHp = dk.getHp();  // 35
+        Combat::onBattleTurn(dk);
+        Combat::onBattleTurn(dk);
+        Combat::onBattleTurn(dk);
+        assert(dk.getHp() == startHp);
+        std::cout << "  ✅ 死亡骑士onBattleTick无效果，HP不变: " << dk.getHp() << std::endl;
     }
 
     std::cout << "\n✅✅ 所有战斗系统测试通过！" << std::endl;
