@@ -1,5 +1,16 @@
 #include "Render.h"
 #include "config.h"
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #include <iostream>
 #include <cstdlib>
 #include <sstream>
@@ -60,8 +71,6 @@ static void drawATBBar(std::ostream& out, const std::string& label,
 // ===== platform: atomic frame flush =====
 
 #ifdef _WIN32
-#include <windows.h>
-
 static HANDLE g_hConsole = NULL;
 
 static void initConsole() {
@@ -77,7 +86,7 @@ static void initConsole() {
 static void flushFrame(const std::string& frame) {
     std::ostringstream final;
     final << "\033[?25l"     // hide cursor
-          << "\033[2J"       // CLEAR ENTIRE SCREEN (fixes short-line leftovers)
+          << "\033[2J"       // CLEAR ENTIRE SCREEN
           << "\033[H"        // cursor home
           << frame
           << "\033[?25h";    // show cursor
@@ -140,11 +149,11 @@ void Render::drawHUD(std::ostream& out, const Player& player, int currentFloor) 
     out << COLOR_RESET;
 
     std::ostringstream oss;
-    oss << "Dungeon Floor " << currentFloor << "/" << MAX_FLOORS
-        << "    HP " << player.getHp() << "/" << player.getMaxHp()
-        << "    ATK " << player.getAttack()
-        << "    DEF " << player.getDefense()
-        << "    Gold " << player.getGold();
+    oss << "地牢 第" << currentFloor << "层 / 共" << MAX_FLOORS << "层"
+        << "    生命" << player.getHp() << "/" << player.getMaxHp()
+        << "    攻击" << player.getAttack()
+        << "    防御" << player.getDefense()
+        << "    金币" << player.getGold();
     drawCenteredText(out, oss.str(), 63);
 
     out << COLOR_CYAN;
@@ -225,16 +234,16 @@ void Render::drawAll(const Map& map, const Player& player,
     }
 
     // Legend
-    b << "  Legend: ";
-    b << COLOR_GREEN << "@=你" << COLOR_RESET << "  #=Wall  .=Floor  ";
-    b << COLOR_RED << "M=怪物" << COLOR_RESET << "  ";
-    b << COLOR_MAGENTA << "B=Boss" << COLOR_RESET << "  ";
-    b << COLOR_RED << "H=Potion" << COLOR_RESET << "  ";
+    b << "  图例: ";
+    b << COLOR_GREEN << "@=主角" << COLOR_RESET << "  #=墙  .=路  ";
+    b << COLOR_RED << "M=小怪" << COLOR_RESET << "  ";
+    b << COLOR_MAGENTA << "B=首领" << COLOR_RESET << "  ";
+    b << COLOR_RED << "H=血瓶" << COLOR_RESET << "  ";
     b << COLOR_YELLOW << "$=马内" << COLOR_RESET << "  ";
-    b << COLOR_GREEN << ">=楼梯" << COLOR_RESET << "  A/D=Scroll\n";
+    b << COLOR_GREEN << ">=楼梯" << COLOR_RESET << "  卷轴\n";
 
     drawMessage(b, message);
-    b << "  [WASD move] [Space wait] [I inventory] [Q quit]\n";
+    b << "  [WASD移动] [空格待机] [I背包] [Q退出]\n";
 
     flushFrame(b.str());
 }
@@ -249,36 +258,78 @@ void Render::drawBattleScreen(const Player& player, const Monster& monster,
     // Top bar
     b << COLOR_BOLD << COLOR_RED;
     drawLine(b, '+', '=', '+', 62);
-    drawCenteredText(b, "BATTLE", 62);
+    drawCenteredText(b, "战 斗", 62);
     drawLine(b, '+', '=', '+', 62);
     b << COLOR_RESET;
 
-    // Player
-    b << COLOR_BOLD << COLOR_GREEN << "  You     " << COLOR_RESET;
+    // ---- Player ----
+    b << COLOR_BOLD << COLOR_GREEN << "  玩家  " << COLOR_RESET;
     b << COLOR_BOLD << player.getName() << COLOR_RESET;
-    b << "  Lv." << player.getLevel() << '\n';
-    drawHPBar(b, "  HP ", player.getHp(), player.getMaxHp(), COLOR_GREEN);
-    drawATBBar(b, "  ATB", player.getAtbGauge(), COLOR_CYAN);
-    b << "  ATK:" << player.getAttack()
-      << "  DEF:" << player.getDefense()
-      << "  SPD:" << player.getSpeed() << '\n';
-    b << '\n';
-    drawCenteredText(b, "VS", 62);
+    b << "  Lv." << player.getLevel();
+
+    // ATK buff indicator
+    if (player.hasAtkBuff()) {
+        b << "  " << COLOR_CYAN << COLOR_BOLD
+          << "[攻击+" << (player.getEffectiveAtk() - player.getAttack())
+          << " " << player.getAtkBuffTurns() << "回合]"
+          << COLOR_RESET;
+    }
     b << '\n';
 
-    // Monster
+    drawHPBar(b, "  生命", player.getHp(), player.getMaxHp(), COLOR_GREEN);
+    drawATBBar(b, "  行动条ATK", player.getAtbGauge(), COLOR_CYAN);
+    b << "  攻击:" << player.getEffectiveAtk()
+      << "  防御:" << player.getDefense()
+      << "  速度:" << player.getSpeed() << '\n';
+
+    // ---- Skills ----
+    b << COLOR_CYAN << "  ---- 技能 ----" << COLOR_RESET << '\n';
+    const auto& skills = const_cast<Player&>(player).getSkills();
+    for (size_t i = 0; i < skills.size(); i++) {
+        const auto& sk = skills[i];
+        b << "  [" << sk.key << ']';
+
+        // Color by status
+        if (sk.level == 0) {
+            // Locked
+            b << COLOR_WHITE;
+        } else if (sk.cooldownRemaining > 0) {
+            // On cooldown
+            b << COLOR_YELLOW;
+        } else {
+            // Ready
+            b << COLOR_GREEN;
+        }
+        b << sk.name << " Lv" << sk.level << COLOR_RESET;
+
+        if (sk.level == 0) {
+            b << COLOR_WHITE << "  未解锁" << COLOR_RESET;
+        } else {
+            b << "  " << sk.desc;
+            if (sk.cooldownRemaining > 0) {
+                b << "  " << COLOR_YELLOW << "[冷却:" << sk.cooldownRemaining << ']' << COLOR_RESET;
+            }
+        }
+        b << '\n';
+    }
+
+    b << '\n';
+    drawCenteredText(b, "对 决", 62);
+    b << '\n';
+
+    // ---- Monster ----
     std::string mColor = monster.isBoss() ? COLOR_MAGENTA : COLOR_RED;
-    b << COLOR_BOLD << mColor << "  Enemy   " << COLOR_RESET;
+    b << COLOR_BOLD << mColor << "  怪物  " << COLOR_RESET;
     b << mColor << COLOR_BOLD << monster.getName() << COLOR_RESET;
-    if (monster.isBoss()) b << COLOR_MAGENTA << " [BOSS]" << COLOR_RESET;
+    if (monster.isBoss()) b << COLOR_MAGENTA << " [首领]" << COLOR_RESET;
     b << '\n';
-    drawHPBar(b, "  HP ", monster.getHp(), monster.getMaxHp(), mColor);
-    drawATBBar(b, "  ATB", monster.getAtbGauge(), COLOR_YELLOW);
-    b << "  ATK:" << monster.getAttack()
-      << "  DEF:" << monster.getDefense()
-      << "  SPD:" << monster.getSpeed() << '\n';
+    drawHPBar(b, "  生命", monster.getHp(), monster.getMaxHp(), mColor);
+    drawATBBar(b, "  行动条", monster.getAtbGauge(), COLOR_YELLOW);
+    b << "  攻击:" << monster.getAttack()
+      << "  防御:" << monster.getDefense()
+      << "  速度:" << monster.getSpeed() << '\n';
 
-    // Battle log
+    // ---- Battle log ----
     b << COLOR_YELLOW;
     drawLine(b, '+', '-', '+', 62);
     b << COLOR_RESET;
@@ -287,15 +338,16 @@ void Render::drawBattleScreen(const Player& player, const Monster& monster,
     for (int i = startIdx; i < logLines; i++) {
         b << "  " << battleLog[i] << '\n';
     }
-    if (logLines == 0) b << "  Battle start!\n";
+    if (logLines == 0) b << "  战斗开始！\n";
 
-    // Controls
+    // ---- Controls ----
     b << COLOR_YELLOW;
     drawLine(b, '+', '-', '+', 62);
     b << COLOR_RESET;
     b << COLOR_BOLD << prompt << COLOR_RESET << '\n';
-    b << "  [a]攻击  [d]防御(-50%)  [i]物品  [f]当逃兵("
+    b << "  [a]攻击  [d]防御(-50%)  [i]道具  [f]当逃兵("
       << (50 + player.getLevel() * 10) << "%)\n";
+    b << "  [1]重击  [2]连斩  [3]破甲  [4]战吼\n";
     b << COLOR_RED << COLOR_BOLD;
     drawLine(b, '+', '=', '+', 62);
     b << COLOR_RESET;
@@ -309,11 +361,11 @@ void Render::drawGameOver(int floor, int gold) {
     std::ostringstream b;
     b << '\n';
     b << "  +----------------------+\n";
-    b << "  |      GAME OVER       |\n";
+    b << "  |      游 戏 结 束     |\n";
     b << "  +----------------------+\n";
     b << '\n';
-    b << "  Floor reached: " << floor << '\n';
-    b << "  Gold collected: " << gold << '\n';
+    b << "  到达层数: " << floor << '\n';
+    b << "  获得金币: " << gold << '\n';
     b << '\n';
     flushFrame(b.str());
 }
@@ -322,10 +374,10 @@ void Render::drawVictory() {
     std::ostringstream b;
     b << '\n';
     b << "  +----------------------+\n";
-    b << "  |      YOU WIN!        |\n";
+    b << "  |      恭 喜 通 关     |\n";
     b << "  +----------------------+\n";
     b << '\n';
-    b << "  You defeated the Dungeon Lord and escaped!\n";
+    b << "  你击败了地牢领主，成功逃出地牢！\n";
     b << '\n';
     flushFrame(b.str());
 }

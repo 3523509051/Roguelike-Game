@@ -1,5 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++11 -Wall -Wextra -g
+LDFLAGS = -limm32
 SRC_DIR = src
 TEST_DIR = test
 
@@ -17,7 +18,7 @@ TARGET = dungeon.exe
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 # 编译规则
 src/%.o: src/%.cpp

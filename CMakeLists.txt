@@ -24,6 +24,7 @@ add_executable(dungeon
 )
 
 target_include_directories(dungeon PRIVATE src)
+target_link_libraries(dungeon imm32)
 
 if (MSVC)
     target_compile_options(dungeon PRIVATE /utf-8)
