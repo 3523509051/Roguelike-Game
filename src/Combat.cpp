@@ -34,3 +34,15 @@ bool Combat::monsterAttack(Monster& monster, Player& player) {
     }
     return false;
 }
+
+// ⭐ 技能伤害（支持倍率）
+int Combat::calcSkillDamage(int atk, int def, float multiplier) {
+    int dmg = calcDamage(atk, def);
+    int result = static_cast<int>(dmg * multiplier);
+    return (result < 1) ? 1 : result;
+}
+
+// ⭐ 战斗回合效果：调用怪物的 onBattleTick（Boss 回血等）
+void Combat::onBattleTurn(Monster& monster) {
+    monster.onBattleTick();
+}

@@ -14,6 +14,12 @@ public:
 
     // 伤害计算
     static int calcDamage(int attack, int defense);
+
+    // ⭐ 技能伤害（支持倍率，如重击 1.5x）
+    static int calcSkillDamage(int attack, int defense, float multiplier);
+
+    // ⭐ 战斗回合效果（Boss 回血等持续技能，每个 ATB 回合调用）
+    static void onBattleTurn(Monster& monster);
 };
 
 #endif // COMBAT_H

@@ -9,16 +9,24 @@ class Monster : public Entity {
 protected:
     int expReward_;
     int goldReward_;
+    int spawnFloor_;  // ⭐ 首次出现楼层（用于层数缩放）
 
 public:
     Monster(const std::string& name, char sym, int x, int y,
-            int hp, int atk, int def, int expR, int goldR, int spd = 10);
+            int hp, int atk, int def, int expR, int goldR, int spd = 10,
+            int spawnFloor = 1);
 
     int getExpReward() const;
     int getGoldReward() const;
 
+    // ⭐ 按楼层缩放属性（每3层以上：HP+2, ATK+1, 每6层 DEF+1）
+    void applyFloorScaling(int currentFloor);
+
     // 怪物AI：每个回合的行动
     virtual void takeTurn(Player& player, const Map& map) = 0;
+
+    // ⭐ 战斗回合回调（Boss 回血等持续效果，每回合由 Combat 调用）
+    virtual void onBattleTick() {}
 };
 
 // 具体怪物类型
@@ -68,6 +76,7 @@ private:
 public:
     Boss(int x, int y);
     void takeTurn(Player& player, const Map& map) override;
+    void onBattleTick() override;  // ⭐ 每3回合回血5
     bool isBoss() const override { return true; }
 };
 

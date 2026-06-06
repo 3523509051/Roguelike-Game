@@ -268,6 +268,7 @@ void Game::spawnMonsters(int count) {
                 else monsters_.push_back(new Wolf(pos.first, pos.second));
             }
         }
+        monsters_.back()->applyFloorScaling(level);  // ⭐ 按楼层缩放怪物
         ++placed;
     }
 }
@@ -333,7 +334,7 @@ void Game::enterBattle(Monster* monster) {
 
             switch (key) {
                 case 'a': {
-                    int dmg = Combat::calcDamage(player_->getAttack(), monster->getDefense());
+                    int dmg = Combat::calcDamage(player_->getEffectiveAtk(), monster->getDefense());
                     int actual = monster->takeDamage(dmg);
                     addBattleLog("你攻击了" + monster->getName() + "，造成 " + std::to_string(actual) + " 点伤害。");
                     playerActed = true;
@@ -405,11 +406,138 @@ void Game::enterBattle(Monster* monster) {
                     }
                     break;
                 }
+                // ⭐ 技能：重击
+                case '1': {
+                    if (!player_->isSkillUnlocked(0)) {
+                        addBattleLog("重击未解锁！请在商店购买。");
+                        continue;
+                    }
+                    if (!player_->useSkill(0)) {
+                        addBattleLog("重击冷却中！还需 " + std::to_string(player_->getSkills()[0].cooldownRemaining) + " 回合");
+                        continue;
+                    }
+                    float mult = player_->getSkills()[0].param1;
+                    int dmg = Combat::calcSkillDamage(player_->getEffectiveAtk(), monster->getDefense(), mult);
+                    int actual = monster->takeDamage(dmg);
+                    addBattleLog("重击(" + std::to_string(mult) + "x)！造成 " + std::to_string(actual) + " 点伤害。");
+                    playerActed = true;
+
+                    if (!monster->isAlive()) {
+                        int oldLevel = player_->getLevel();
+                        bool bossKilled = monster->isBoss();
+                        achievementMgr_->onMonsterKilled(*monster);
+                        player_->gainExp(monster->getExpReward());
+                        player_->addGold(monster->getGoldReward());
+                        achievementMgr_->onGoldGained(monster->getGoldReward());
+                        if (player_->getLevel() > oldLevel) {
+                            achievementMgr_->onLevelUp(player_->getLevel());
+                        }
+                        if (bossKilled && player_->getFloor() >= MAX_FLOORS) {
+                            achievementMgr_->onVictory();
+                        }
+                        addBattleLog(monster->getName() + " 被击败了！");
+                        render_->drawBattleScreen(*player_, *monster, battleLog_, "按任意键继续...");
+                        input_->getKey();
+                        return;
+                    }
+                    break;
+                }
+                // ⭐ 技能：连斩（2-3连击）
+                case '2': {
+                    if (!player_->isSkillUnlocked(1)) {
+                        addBattleLog("连斩未解锁！请在商店购买。");
+                        continue;
+                    }
+                    if (!player_->useSkill(1)) {
+                        addBattleLog("连斩冷却中！还需 " + std::to_string(player_->getSkills()[1].cooldownRemaining) + " 回合");
+                        continue;
+                    }
+                    int hits = static_cast<int>(player_->getSkills()[1].param1);  // Lv.1=2, Lv.3=3
+                    bool dead = false;
+                    int totalDmg = 0;
+                    for (int h = 0; h < hits && !dead; h++) {
+                        int dmg = Combat::calcDamage(player_->getEffectiveAtk(), monster->getDefense());
+                        int actual = monster->takeDamage(dmg);
+                        totalDmg += actual;
+                        addBattleLog("连斩第" + std::to_string(h+1) + "击！造成 " + std::to_string(actual) + " 点伤害。");
+                        if (!monster->isAlive()) {
+                            dead = true;
+                        }
+                    }
+                    playerActed = true;
+
+                    if (!monster->isAlive()) {
+                        int oldLevel = player_->getLevel();
+                        bool bossKilled = monster->isBoss();
+                        achievementMgr_->onMonsterKilled(*monster);
+                        player_->gainExp(monster->getExpReward());
+                        player_->addGold(monster->getGoldReward());
+                        achievementMgr_->onGoldGained(monster->getGoldReward());
+                        if (player_->getLevel() > oldLevel) achievementMgr_->onLevelUp(player_->getLevel());
+                        if (bossKilled && player_->getFloor() >= MAX_FLOORS) achievementMgr_->onVictory();
+                        addBattleLog(monster->getName() + " 被击败了！");
+                        render_->drawBattleScreen(*player_, *monster, battleLog_, "按任意键继续...");
+                        input_->getKey();
+                        return;
+                    }
+                    break;
+                }
+                // ⭐ 技能：破甲（无视防御）
+                case '3': {
+                    if (!player_->isSkillUnlocked(2)) {
+                        addBattleLog("破甲未解锁！请在商店购买。");
+                        continue;
+                    }
+                    if (!player_->useSkill(2)) {
+                        addBattleLog("破甲冷却中！还需 " + std::to_string(player_->getSkills()[2].cooldownRemaining) + " 回合");
+                        continue;
+                    }
+                    float mult = player_->getSkills()[2].param1;
+                    int dmg = Combat::calcSkillDamage(player_->getEffectiveAtk(), 0, mult);  // 无视防御
+                    int actual = monster->takeDamage(dmg);
+                    addBattleLog("破甲(" + std::to_string(mult) + "x无视防)！造成 " + std::to_string(actual) + " 点伤害。");
+                    playerActed = true;
+
+                    if (!monster->isAlive()) {
+                        int oldLevel = player_->getLevel();
+                        bool bossKilled = monster->isBoss();
+                        achievementMgr_->onMonsterKilled(*monster);
+                        player_->gainExp(monster->getExpReward());
+                        player_->addGold(monster->getGoldReward());
+                        achievementMgr_->onGoldGained(monster->getGoldReward());
+                        if (player_->getLevel() > oldLevel) achievementMgr_->onLevelUp(player_->getLevel());
+                        if (bossKilled && player_->getFloor() >= MAX_FLOORS) achievementMgr_->onVictory();
+                        addBattleLog(monster->getName() + " 被击败了！");
+                        render_->drawBattleScreen(*player_, *monster, battleLog_, "按任意键继续...");
+                        input_->getKey();
+                        return;
+                    }
+                    break;
+                }
+                // ⭐ 技能：战吼（ATK+5~10 持续3~4回合）
+                case '4': {
+                    if (!player_->isSkillUnlocked(3)) {
+                        addBattleLog("战吼未解锁！请在商店购买。");
+                        continue;
+                    }
+                    if (!player_->useSkill(3)) {
+                        addBattleLog("战吼冷却中！还需 " + std::to_string(player_->getSkills()[3].cooldownRemaining) + " 回合");
+                        continue;
+                    }
+                    int buffAtk = static_cast<int>(player_->getSkills()[3].param1);
+                    int buffTurns = player_->getSkills()[3].param2;
+                    player_->setAtkBuff(buffAtk, buffTurns);
+                    addBattleLog("战吼！攻击力+" + std::to_string(buffAtk) + "，持续" + std::to_string(buffTurns) + "回合（当前ATK: " + std::to_string(player_->getEffectiveAtk()) + "）。");
+                    playerActed = true;
+                    break;
+                }
                 default:
                     continue;
             }
 
             if (playerActed) {
+                player_->tickCooldowns();  // ⭐ 技能冷却-1
+                player_->tickBuffs();      // ⭐ 增益回合-1
                 player_->resetAtb();
             }
         }
