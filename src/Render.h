@@ -7,29 +7,29 @@
 #include "Item.h"
 #include <string>
 #include <vector>
+#include <ostream>
 
 class Render {
 public:
     Render();
 
-    void clear();                // 清屏
-    void drawHUD(const Player& player, int currentFloor);  // 状态栏
-    void drawMap(const Map& map);                          // 地图
-    void drawEntities(const Player& player,                // 玩家+怪物+道具
-                      const std::vector<Monster*>& monsters,
-                      const std::vector<Item*>& items);
-    void drawMessage(const std::string& msg);   // 消息
+    void clear();                // 清屏（只移动光标到左上角，不擦除）
     void drawAll(const Map& map, const Player& player,
                  const std::vector<Monster*>& monsters,
                  const std::vector<Item*>& items,
-                 const std::string& message);   // 一次画全部
+                 const std::string& message);   // ⭐ 双缓冲绘制全部
     void drawGameOver(int floor, int gold);     // 游戏结束
     void drawVictory();                          // 胜利画面
 
-    // ⭐ 战斗界面
+    // ⭐ 战斗界面（双缓冲）
     void drawBattleScreen(const Player& player, const Monster& monster,
                           const std::vector<std::string>& battleLog,
                           const std::string& prompt);
+
+private:
+    // 内部版本 —— 都写到 ostream，供 drawAll / drawBattleScreen 复用
+    void drawHUD(std::ostream& out, const Player& player, int currentFloor);
+    void drawMessage(std::ostream& out, const std::string& msg);
 };
 
 #endif // RENDER_H
