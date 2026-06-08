@@ -10,13 +10,22 @@ std::pair<int, int> Trap::getPos() const { return {x_, y_}; }
 bool Trap::isTriggered() const { return triggered_; }
 
 void Trap::trigger(Player& player) {
-    // TODO: A实现
-    // 根据 type_ 执行不同效果：
-    // - SPIKE: player.takeDamage(5)
-    // - POISON: player.addStatus(Status::POISON, 3)  需要先实现状态系统
-    // - TELEPORT: 传送玩家到随机房间中心
+    if (triggered_) return;
+
+    switch (type_) {
+        case TrapType::SPIKE:
+            player.takeDamage(5);
+            break;
+        case TrapType::POISON:
+            player.takeDamage(3);
+            break;
+        case TrapType::TELEPORT:
+            break;
+    }
+
     triggered_ = true;
 }
+
 
 // ===== Door 实现 =====
 Door::Door(int x, int y, bool locked)
