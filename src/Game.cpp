@@ -49,6 +49,9 @@ Game::~Game() {
     delete render_;
     delete input_;
     delete achievementMgr_;
+        for (auto* trap : traps_) delete trap;
+    for (auto* door : doors_) delete door;
+    for (auto* chest : chests_) delete chest;
     delete shop_;
 }
 
@@ -181,7 +184,8 @@ void Game::run() {
     }
 
     while (running_) {
-        render_->drawAll(*map_, *player_, monsters_, items_, message_);
+        render_->drawAll(*map_, *player_, monsters_, items_, traps_, doors_, chests_, message_);
+
         char key = input_->getKey();
         update(key);
 
@@ -224,7 +228,12 @@ void Game::initFloor() {
     monsters_.clear();
     for (auto* item : items_) delete item;
     items_.clear();
-
+    for (auto* trap : traps_) delete trap;
+    traps_.clear();
+    for (auto* door : doors_) delete door;
+    doors_.clear();
+    for (auto* chest : chests_) delete chest;
+    chests_.clear();
     if (player_->getFloor() > 1) {
         openShop();
     }
