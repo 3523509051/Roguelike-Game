@@ -1,4 +1,5 @@
 #include "Game.h"
+#include "MapObject.h"
 #include "Combat.h"
 #include "config.h"
 #include <cstdlib>
@@ -202,7 +203,13 @@ void Game::init() {
     for (auto* item : items_) delete item;
     monsters_.clear();
     items_.clear();
-
+    // 清理陷阱/门/宝箱
+    for (auto* trap : traps_) delete trap;
+    for (auto* door : doors_) delete door;
+    for (auto* chest : chests_) delete chest;
+    traps_.clear();
+    doors_.clear();
+    chests_.clear();
     map_ = new Map(MAP_WIDTH, MAP_HEIGHT);
     player_ = new Player(0, 0);
     running_ = true;
@@ -229,6 +236,37 @@ void Game::initFloor() {
     int monsterCount = MONSTERS_PER_FLOOR + player_->getFloor() * 2;
     if (monsterCount > 20) monsterCount = 20;
     spawnMonsters(monsterCount);
+    // 放置陷阱（3-5个）
+    int trapCount = 3 + rand() % 3;
+    for (int i = 0; i < trapCount; i++) {
+        auto pos = map_->getRandomRoomCenter();
+        if (pos == player_->getPos()) continue;
+        int type = rand() % 3;
+        TrapType tt;
+        if (type == 0) tt = TrapType::SPIKE;
+        else if (type == 1) tt = TrapType::POISON;
+        else tt = TrapType::TELEPORT;
+        traps_.push_back(new Trap(tt, pos.first, pos.second));
+    }
+
+    // 放置门（2-3个，一半概率锁着）
+    int doorCount = 2 + rand() % 2;
+    for (int i = 0; i < doorCount; i++) {
+        auto pos = map_->getRandomRoomCenter();
+        if (pos == player_->getPos()) continue;
+        bool locked = (rand() % 2 == 0);
+        doors_.push_back(new Door(pos.first, pos.second, locked));
+    }
+
+    // 放置宝箱（2-4个）
+    int chestCount = 2 + rand() % 3;
+    for (int i = 0; i < chestCount; i++) {
+        auto pos = map_->getRandomRoomCenter();
+        if (pos == player_->getPos()) continue;
+        chests_.push_back(new Chest(pos.first, pos.second));
+    }
+
+    setMessage("进入第 " + std::to_string(player_->getFloor()) + " 层！");
 
     int itemCount = ITEMS_PER_FLOOR + player_->getFloor();
     if (itemCount > 10) itemCount = 10;
@@ -639,10 +677,47 @@ void Game::checkEvents() {
         }
     }
 
+    // ===== 以下新增：检测陷阱/门/宝箱 =====
+
+    for (auto* trap : traps_) {
+        if (trap && !trap->isTriggered() &&
+            trap->getPos().first == px && trap->getPos().second == py) {
+            trap->trigger(*player_);
+            setMessage("踩到了陷阱！受到了伤害！");
+        }
+    }
+
+    for (auto* door : doors_) {
+        if (door && door->getPos().first == px && door->getPos().second == py) {
+            if (door->tryOpen(*player_)) {
+                setMessage("门打开了！");
+            } else {
+                setMessage("门锁着，需要钥匙！");
+                return;  // 锁门过不去，停止移动
+            }
+        }
+    }
+
+    for (auto* chest : chests_) {
+        if (chest && !chest->isOpened() &&
+            chest->getPos().first == px && chest->getPos().second == py) {
+            chest->open(*player_);
+            achievementMgr_->onChestOpened();
+            if (chest->isTrap()) {
+                setMessage("这是个陷阱宝箱！受到10点伤害！");
+            } else {
+                setMessage("打开了宝箱！获得了道具！");
+            }
+        }
+    }
+
+    // ===== 新增结束 =====
+
     if (map_->getTile(px, py) == Tile::STAIRS_DOWN) {
         nextFloor();
     }
 }
+
 
 void Game::nextFloor() {
     if (player_->getFloor() >= MAX_FLOORS) {

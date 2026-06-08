@@ -145,7 +145,11 @@ void Render::drawMessage(std::ostream& out, const std::string& msg) {
 void Render::drawAll(const Map& map, const Player& player,
                      const std::vector<Monster*>& monsters,
                      const std::vector<Item*>& items,
+                     const std::vector<Trap*>& traps,
+                     const std::vector<Door*>& doors,
+                     const std::vector<Chest*>& chests,
                      const std::string& message) {
+
     std::ostringstream b;
 
     // HUD
@@ -190,9 +194,45 @@ void Render::drawAll(const Map& map, const Player& player,
                     }
                 }
             }
+                        // Traps
+            if (!drawn) {
+                for (Trap* trap : traps) {
+                    if (trap && !trap->isTriggered() &&
+                        x == trap->getPos().first && y == trap->getPos().second) {
+                        b << COLOR_RED << '^' << COLOR_RESET;
+                        drawn = true;
+                        break;
+                    }
+                }
+            }
+            // Doors
+            if (!drawn) {
+                for (Door* door : doors) {
+                    if (door && x == door->getPos().first && y == door->getPos().second) {
+                        if (door->isLocked())
+                            b << COLOR_RED << '+' << COLOR_RESET;
+                        else
+                            b << COLOR_WHITE << '+' << COLOR_RESET;
+                        drawn = true;
+                        break;
+                    }
+                }
+            }
+            // Chests
+            if (!drawn) {
+                for (Chest* chest : chests) {
+                    if (chest && !chest->isOpened() &&
+                        x == chest->getPos().first && y == chest->getPos().second) {
+                        b << COLOR_YELLOW << 'C' << COLOR_RESET;
+                        drawn = true;
+                        break;
+                    }
+                }
+            }
             // Terrain
             if (!drawn) {
                 switch (map.getTile(x, y)) {
+
                     case Tile::WALL:        b << COLOR_WHITE << '#' << COLOR_RESET; break;
                     case Tile::FLOOR:       b << '.'; break;
                     case Tile::STAIRS_DOWN: b << COLOR_GREEN << '>' << COLOR_RESET; break;
@@ -209,7 +249,6 @@ void Render::drawAll(const Map& map, const Player& player,
     b << COLOR_MAGENTA << "B=Boss" << COLOR_RESET << "  ";
     b << COLOR_RED << "H=Potion" << COLOR_RESET << "  ";
     b << COLOR_YELLOW << "$=Gold" << COLOR_RESET << "  ";
-    b << COLOR_GREEN << ">=Stairs" << COLOR_RESET << "  A/D=Scroll\n";
 
     drawMessage(b, message);
     b << "  [WASD move] [Space wait] [I inventory] [Q quit]\n";

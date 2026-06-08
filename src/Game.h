@@ -12,13 +12,16 @@
 #include "Shop.h"
 #include <vector>
 #include <string>
-
+#include "MapObject.h"   // ← 新增
 class Game {
 private:
     Map* map_;
     Player* player_;
-    std::vector<Monster*> monsters_;
+        std::vector<Monster*> monsters_;
     std::vector<Item*> items_;
+    std::vector<Trap*> traps_;        // ← 新增
+    std::vector<Door*> doors_;        // ← 新增
+    std::vector<Chest*> chests_;      // ← 新增
     Render* render_;
     Input* input_;
     AchievementManager* achievementMgr_;
